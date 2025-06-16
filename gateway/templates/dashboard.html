@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TNA Gateway - Dashboard</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; }
+        .alert { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>TNA Gateway Dashboard</h2>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Welcome, {{ user_name }}!</h5>
+                <p class="card-text">You are logged in as: {{ user_email }}</p>
+                <p class="card-text">You now have access to Google Drive functionalities.</p>
+                <!-- Google Drive integration UI will go here in a later step -->
+                <!-- <a href="#" class="btn btn-primary disabled">Manage Shiny App State (Coming Soon)</a> -->
+            </div>
+        </div>
+
+        <hr class="my-4">
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Manage TNA Shiny App State</h5>
+                <p class="card-text">Save the current state of your TNA Shiny app to Google Drive, or load a previously saved state.</p>
+
+                <form action="{{ url_for('request_save_state_route') }}" method="POST" class="mb-3">
+                    <div class="form-group">
+                        <label for="drive_filename">Filename for Google Drive (e.g., my_analysis_state.rds):</label>
+                        <input type="text" class="form-control" id="drive_filename" name="drive_filename" required placeholder="shiny_session_yyyymmdd.rds">
+                    </div>
+                    <button type="submit" class="btn btn-primary">1. Request Shiny to Save State</button>
+                </form>
+
+                {% if session.waiting_for_shiny_save %}
+                <div class="alert alert-warning" role="alert">
+                    <h4 class="alert-heading">Pending Shiny Save!</h4>
+                    <p>The gateway has requested the Shiny app to save its current state to: <br><code>{{ session.waiting_for_shiny_save.local_path }}</code></p>
+                    <p>Once you confirm the Shiny app has completed this local save (check Shiny app notifications/logs if any), click the button below to upload it to Google Drive as <strong>{{ session.waiting_for_shiny_save.drive_filename }}</strong>.</p>
+                    <hr>
+                    <form action="{{ url_for('confirm_upload_to_drive_route') }}" method="POST">
+                        <button type="submit" class="btn btn-success">2. Confirm and Upload to Google Drive</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Available States in Google Drive</h5>
+                 <p class="card-text">Files are stored in the "<strong>{{ APP_DRIVE_FOLDER_NAME }}</strong>" folder. <a href="{{ url_for('list_drive_files_route') }}" class="btn btn-info btn-sm ml-2">Refresh List</a></p>
+
+                {% set drive_files = session.get('drive_files', []) %}
+                {% if drive_files %}
+                    <ul class="list-group">
+                        {% for file in drive_files %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ file.name }}</strong><br>
+                                    <small class="text-muted">
+                                        ID: {{ file.id }} |
+                                        Modified: {{ file.modifiedTime | replace("T", " ") | replace("Z", "") }} |
+                                        Size: {{ file.size | int }} bytes
+                                    </small>
+                                </div>
+                                <a href="{{ url_for('request_load_state_route', file_id=file.id) }}" class="btn btn-sm btn-warning">Load this State into Shiny App</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% elif session.get('credentials') %}
+                    <p class="text-muted">No .rds files found in the app folder, or list not refreshed yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-light border rounded">
+            <h6>Session Credentials (for debugging - remove in production):</h6>
+            <pre style="max-height: 200px; overflow-y: auto;"><code>{{ session.get('credentials') | tojson(indent=2) }}</code></pre>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
