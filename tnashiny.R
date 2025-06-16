@@ -1,3 +1,4 @@
+library(jsonlite)
 library(shiny)
 library(shinydashboard)
 library(DT)
@@ -1071,6 +1072,99 @@ ui <- dashboardPage(
 )
 # Server
 server <- function(input, output, session) {
+
+  # --- File Trigger Observer for Gateway Communication ---
+  # Define the shared directory path from Shiny app's perspective
+  SHARED_EXCHANGE_DIR_R <- file.path(getwd(), 'shiny_exchange') # Corrected placeholder replacement
+  TRIGGER_SAVE_FILE_NAME_R <- 'save_request.json' # Corrected placeholder replacement
+  TRIGGER_LOAD_FILE_NAME_R <- 'load_request.json' # Corrected placeholder replacement
+
+  observe({
+    # Poll every 2 seconds (adjust as needed)
+    invalidateLater(2000, session)
+
+    # Construct full paths to trigger files
+    save_trigger_file <- file.path(SHARED_EXCHANGE_DIR_R, TRIGGER_SAVE_FILE_NAME_R)
+    load_trigger_file <- file.path(SHARED_EXCHANGE_DIR_R, TRIGGER_LOAD_FILE_NAME_R)
+
+    # Check for save request
+    if (file.exists(save_trigger_file)) {
+      showNotification("Save request received from gateway...", type = "message", duration = 5)
+      tryCatch({
+        trigger_data <- jsonlite::fromJSON(txt = save_trigger_file)
+        local_rds_to_save <- trigger_data$local_rds_path # Path where Shiny should save its state
+
+        save_dir <- dirname(local_rds_to_save)
+        if (!dir.exists(save_dir)) {
+          dir.create(save_dir, recursive = TRUE)
+          message(paste("Created directory for Shiny save:", save_dir))
+        }
+
+        current_inputs <- get_all_input_values(input)
+        reactive_values_snapshot <- reactiveValuesToList(rv)
+
+        if ("clique_plots" %in% names(reactive_values_snapshot)) {
+             reactive_values_snapshot[["clique_plots"]] <- NULL
+        }
+
+        app_state_snapshot <- list(
+          inputs = current_inputs,
+          reactive_values = reactive_values_snapshot
+        )
+        saveRDS(app_state_snapshot, file = local_rds_to_save)
+
+        showNotification(paste("Shiny state saved locally to:", local_rds_to_save), type = "message", duration = 5)
+
+        file.remove(save_trigger_file)
+        message(paste("Processed and removed save trigger:", save_trigger_file))
+
+      }, error = function(e) {
+        showNotification(paste("Error processing save trigger:", e$message), type = "error", duration = 10)
+        message(paste("Error processing save trigger:", e$message))
+      })
+    }
+
+    # Check for load request
+    if (file.exists(load_trigger_file)) {
+      showNotification("Load request received from gateway...", type = "message", duration = 5)
+      tryCatch({
+        trigger_data <- jsonlite::fromJSON(txt = load_trigger_file)
+        local_rds_to_load <- trigger_data$local_rds_path
+
+        if (!file.exists(local_rds_to_load)) {
+          stop(paste("RDS file to load not found at:", local_rds_to_load))
+        }
+
+        loaded_app_state <- readRDS(local_rds_to_load)
+
+        restore_input_values(session, loaded_app_state$inputs)
+
+        if (!is.null(loaded_app_state$reactive_values)) {
+          for (name in names(loaded_app_state$reactive_values)) {
+            if (name %in% names(rv)) {
+                 rv[[name]] <- loaded_app_state$reactive_values[[name]]
+            } else {
+                 message(paste("Warning: Reactive value '", name, "' from saved state not found in current rv structure. Skipping."))
+            }
+          }
+        }
+
+        showNotification(paste("Shiny state loaded from:", local_rds_to_load), type = "message", duration = 5)
+
+        file.remove(load_trigger_file)
+        message(paste("Processed and removed load trigger:", load_trigger_file))
+
+        if (file.exists(local_rds_to_load)) {
+          file.remove(local_rds_to_load)
+          message(paste("Removed temporary RDS file:", local_rds_to_load))
+        }
+
+      }, error = function(e) {
+        showNotification(paste("Error processing load trigger:", e$message), type = "error", duration = 10)
+        message(paste("Error processing load trigger:", e$message))
+      })
+    }
+  })
   # Reactive values to store the analysis results
   rv <- reactiveValues(
     original = NULL,
