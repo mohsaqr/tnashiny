@@ -1,0 +1,809 @@
+/* ============================================================================
+   TNA Shiny App - Custom Styles
+   ============================================================================ */
+
+/* --------------------------------------------------------------------------
+   General Styles
+   -------------------------------------------------------------------------- */
+
+.shiny-plot-output {
+  max-width: 100% !important;
+}
+
+.shiny-plot-output img {
+  max-width: 100% !important;
+}
+
+.shiny-html-output {
+  overflow: auto;
+}
+
+.resizable {
+  border: 1px solid #ccc;
+  background: lightgray;
+  position: relative;
+  display: inline-block;
+  padding: 10px;
+  margin: 10px;
+}
+
+.size-display {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 3px 7px;
+  font-size: 12px;
+  border-radius: 3px;
+  z-index: 10;
+}
+
+.checkboxcentralities .form-group {
+  margin-bottom: 0px !important;
+}
+
+.datatype {
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.2em;
+  display: block;
+}
+
+.thumb {
+  padding: 1em;
+}
+
+.btn-primary {
+  color: white;
+}
+
+.box-title {
+  font-weight: bold;
+}
+
+/* --------------------------------------------------------------------------
+   Login Page Styles
+   -------------------------------------------------------------------------- */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 480px;
+}
+
+.login-box {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 40px;
+  text-align: center;
+}
+
+.login-header {
+  margin-bottom: 30px;
+}
+
+.login-header img {
+  margin-bottom: 20px;
+}
+
+.login-header h1 {
+  font-size: 1.8em;
+  color: #333;
+  margin: 0 0 10px 0;
+  font-weight: 600;
+}
+
+.login-subtitle {
+  color: #666;
+  font-size: 1.1em;
+  margin: 0;
+}
+
+.login-features {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin: 30px 0;
+  flex-wrap: wrap;
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #555;
+}
+
+.feature-item i {
+  font-size: 1.5em;
+  color: #764ba2;
+}
+
+.feature-item span {
+  font-size: 0.85em;
+}
+
+.privacy-note {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 25px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.privacy-note i {
+  color: #0284c7;
+  font-size: 1.3em;
+  flex-shrink: 0;
+}
+
+.privacy-note p {
+  margin: 0;
+  color: #0369a1;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.login-button-container {
+  margin: 30px 0;
+}
+
+.btn-google-signin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 32px;
+  font-size: 1.1em;
+  font-weight: 500;
+  color: #333;
+  background: white;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-google-signin:hover {
+  background: #f8f9fa;
+  border-color: #ccc;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-google-signin:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.login-footer {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.login-footer p {
+  color: #888;
+  font-size: 0.85em;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.login-footer a {
+  color: #764ba2;
+  text-decoration: none;
+}
+
+.login-footer a:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Header Buttons
+   -------------------------------------------------------------------------- */
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+}
+
+.header-btn-group {
+  display: flex;
+  gap: 5px;
+  padding: 10px 15px;
+}
+
+.btn-header {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-header:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.btn-header:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   User Menu Styles
+   -------------------------------------------------------------------------- */
+
+.user-menu .dropdown-menu {
+  width: 280px;
+}
+
+.user-menu .user-header {
+  height: auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.user-menu .user-header img {
+  width: 80px;
+  height: 80px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.user-menu .user-header p {
+  color: white;
+  margin: 10px 0 0 0;
+  font-weight: 500;
+}
+
+.user-menu .user-header p small {
+  display: block;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85em;
+  margin-top: 5px;
+}
+
+.user-menu .user-body {
+  padding: 15px;
+  border-top: 1px solid #f4f4f4;
+}
+
+.user-menu .user-body a {
+  color: #333;
+  display: block;
+  padding: 8px 0;
+}
+
+.user-menu .user-body a:hover {
+  color: #764ba2;
+}
+
+.user-menu .user-footer {
+  padding: 10px;
+  border-top: 1px solid #f4f4f4;
+  background: #f9f9f9;
+}
+
+.user-menu .user-footer .btn {
+  width: 100%;
+}
+
+.user-image {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* --------------------------------------------------------------------------
+   Save/Load Dialog Styles
+   -------------------------------------------------------------------------- */
+
+.save-dialog,
+.load-dialog,
+.export-dialog,
+.settings-dialog {
+  padding: 10px 0;
+}
+
+.save-info {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 12px 15px;
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.save-info i {
+  color: #17a2b8;
+}
+
+.save-options {
+  margin: 15px 0;
+}
+
+.save-options .checkbox {
+  margin: 8px 0;
+}
+
+.no-analyses {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.no-analyses i {
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.no-analyses h4 {
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.analyses-table-container {
+  margin-bottom: 15px;
+}
+
+.analysis-preview {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.analysis-preview h5 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.analysis-preview p {
+  margin: 0;
+  font-size: 0.9em;
+  color: #666;
+}
+
+/* --------------------------------------------------------------------------
+   Modal Improvements
+   -------------------------------------------------------------------------- */
+
+.modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 6px 6px 0 0;
+}
+
+.modal-header .close {
+  color: white;
+  opacity: 0.8;
+}
+
+.modal-header .close:hover {
+  opacity: 1;
+}
+
+.modal-title i {
+  margin-right: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Adjustments
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .login-box {
+    padding: 30px 20px;
+  }
+
+  .login-features {
+    gap: 20px;
+  }
+
+  .header-btn-group {
+    padding: 5px 10px;
+  }
+
+  .btn-header {
+    padding: 4px 8px;
+    font-size: 0.9em;
+  }
+
+  .privacy-note {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-header h1 {
+    font-size: 1.5em;
+  }
+
+  .login-features {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .btn-google-signin {
+    width: 100%;
+    padding: 12px 20px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Dashboard Skin Override (Purple Theme Enhancement)
+   -------------------------------------------------------------------------- */
+
+.skin-purple .main-header .navbar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.skin-purple .main-header .logo {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.skin-purple .main-header .logo:hover {
+  background: linear-gradient(135deg, #4c51bf 0%, #553c9a 100%);
+}
+
+.skin-purple .sidebar-menu > li.active > a {
+  border-left-color: #764ba2;
+}
+
+/* --------------------------------------------------------------------------
+   Additional UI Polish
+   -------------------------------------------------------------------------- */
+
+.box {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.box-header {
+  border-bottom: 1px solid #f4f4f4;
+}
+
+.nav-tabs-custom > .nav-tabs > li.active {
+  border-top-color: #764ba2;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.btn-danger {
+  background: #dc3545;
+  border: none;
+}
+
+.btn-danger:hover {
+  background: #c82333;
+}
+
+/* Progress indicators */
+.shiny-notification {
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* DataTables styling */
+.dataTables_wrapper {
+  padding: 10px 0;
+}
+
+table.dataTable thead th {
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+table.dataTable.stripe tbody tr.odd {
+  background: #fcfcfc;
+}
+
+/* --------------------------------------------------------------------------
+   Content Toolbar
+   -------------------------------------------------------------------------- */
+
+.content-toolbar {
+  background: linear-gradient(to bottom, #fafafa, #f0f0f0) !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+  padding: 12px 20px !important;
+  margin: -15px -15px 20px -15px !important;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.content-toolbar .btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.content-toolbar .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+.content-toolbar .btn i {
+  margin-right: 5px;
+  color: inherit !important;
+}
+
+/* Ensure toolbar button icons are visible */
+.content-toolbar .btn-primary,
+.content-toolbar .btn-primary i {
+  color: #fff !important;
+}
+
+.content-toolbar .btn-info,
+.content-toolbar .btn-info i {
+  color: #fff !important;
+}
+
+.content-toolbar .btn-default,
+.content-toolbar .btn-default i {
+  color: #333 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar Polish
+   -------------------------------------------------------------------------- */
+
+.skin-purple .main-sidebar {
+  background: #2c2c3e;
+}
+
+.skin-purple .sidebar-menu > li > a {
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.skin-purple .sidebar-menu > li:hover > a {
+  background: rgba(255,255,255,0.05);
+  border-left-color: rgba(118, 75, 162, 0.5);
+}
+
+.skin-purple .sidebar-menu > li.active > a {
+  background: rgba(118, 75, 162, 0.15);
+  border-left-color: #764ba2;
+}
+
+/* --------------------------------------------------------------------------
+   Box Enhancements
+   -------------------------------------------------------------------------- */
+
+.box {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+.box:hover {
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.box-header.with-border {
+  border-bottom: 1px solid #eee;
+  padding: 15px;
+}
+
+.box-body {
+  padding: 15px;
+}
+
+/* --------------------------------------------------------------------------
+   Form Controls
+   -------------------------------------------------------------------------- */
+
+.form-control {
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus {
+  border-color: #764ba2;
+  box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.15);
+}
+
+.selectize-input {
+  border-radius: 6px !important;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons General
+   -------------------------------------------------------------------------- */
+
+.btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn-info {
+  background: #17a2b8;
+  border: none;
+}
+
+.btn-info:hover {
+  background: #138496;
+}
+
+.btn-default {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+}
+
+.btn-default:hover {
+  background: #e9ecef;
+  border-color: #ccc;
+}
+
+/* --------------------------------------------------------------------------
+   Tab Styling
+   -------------------------------------------------------------------------- */
+
+.nav-tabs > li > a {
+  border-radius: 6px 6px 0 0;
+  transition: background 0.15s ease;
+}
+
+.nav-tabs > li.active > a {
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   Export Buttons
+   -------------------------------------------------------------------------- */
+
+.export-btn-group {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.export-btn-group .export-label {
+  font-size: 0.85em;
+  color: #666;
+  margin-right: 5px;
+  align-self: center;
+}
+
+.btn-export,
+.btn-export.btn-default,
+.btn-export.shiny-download-link {
+  padding: 4px 8px !important;
+  font-size: 0.9em !important;
+  border-radius: 4px !important;
+  min-width: auto !important;
+  background: #f0f0f0 !important;
+  border: 1px solid #ccc !important;
+  color: #333 !important;
+  transition: all 0.15s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
+}
+
+.btn-export:hover,
+.btn-export.btn-default:hover,
+.btn-export.shiny-download-link:hover {
+  background: #e0e0e0 !important;
+  border-color: #999 !important;
+  color: #000 !important;
+  text-decoration: none !important;
+}
+
+.btn-export i,
+.btn-export .fa,
+.btn-export .fas,
+.btn-export .far {
+  margin-right: 0 !important;
+  color: #555 !important;
+  font-size: 1em !important;
+}
+
+.btn-export:hover i,
+.btn-export:hover .fa,
+.btn-export:hover .fas,
+.btn-export:hover .far {
+  color: #000 !important;
+}
+
+.btn-export-csv:hover,
+.btn-export-csv:hover i {
+  background: #d4edda !important;
+  border-color: #28a745 !important;
+  color: #28a745 !important;
+}
+
+.btn-export-xlsx:hover,
+.btn-export-xlsx:hover i {
+  background: #d4edda !important;
+  border-color: #217346 !important;
+  color: #217346 !important;
+}
+
+.btn-export-png:hover,
+.btn-export-png:hover i {
+  background: #cce5ff !important;
+  border-color: #007bff !important;
+  color: #007bff !important;
+}
+
+.btn-export-pdf:hover,
+.btn-export-pdf:hover i {
+  background: #f8d7da !important;
+  border-color: #dc3545 !important;
+  color: #dc3545 !important;
+}
+
+/* Box header with export buttons */
+.box-header-with-export {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.box-header-with-export .box-title {
+  flex: 1;
+}
+
+/* Export panel in toolbar */
+.export-all-panel {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.export-all-panel .dropdown-menu {
+  min-width: 200px;
+}
+
+.export-all-panel .dropdown-menu li a {
+  padding: 8px 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-all-panel .dropdown-menu li a i {
+  width: 20px;
+  text-align: center;
+}

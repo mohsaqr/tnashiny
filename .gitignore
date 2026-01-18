@@ -1,0 +1,21 @@
+# R
+.Rhistory
+.Rdata
+.RData
+.Ruserdata
+*.Rproj.user
+
+# Shiny
+rsconnect/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.Renviron
+.env
+
+# Temporary files
+*.tmp
+*.log
