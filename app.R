@@ -18,6 +18,8 @@ ui <- function(request) {
     tags$head(
       tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
       tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
+      # Hide permutation menu by default (only shown in Group TNA mode)
+      tags$style(HTML("a[data-value='permutation'] { display: none; }")),
       # JavaScript for session persistence (localStorage for cross-session)
       tags$script(HTML("
         // Store auth data in localStorage (persists across browser sessions)
@@ -380,22 +382,33 @@ server <- function(input, output, session) {
           menuItem("Input Data", tabName = "input", icon = icon("table"), selected = TRUE),
           menuItem("Summary results", tabName = "results", icon = icon("chart-bar")),
           menuItem("Visualization", tabName = "tna_plot", icon = icon("circle-nodes")),
+          menuItem("Sequences", tabName = "sequences", icon = icon("list-ol")),
+          menuItem("Frequencies", tabName = "frequencies", icon = icon("chart-column")),
+          menuItem("Associations", tabName = "associations", icon = icon("link")),
           menuItem("Centrality Measures", tabName = "centrality", icon = icon("chart-line")),
           menuItem("Community Detection", tabName = "communities", icon = icon("users")),
           menuItem("Edge Betweenness", tabName = "edgebet", icon = icon("people-arrows")),
           menuItem("Cliques", tabName = "cliques", icon = icon("sitemap")),
           menuItem("Comparison", tabName = "comparison", icon = icon("balance-scale")),
-          menuItem("Validation", tabName = "bootstrap", icon = icon("check-circle"))
+          menuItem("Group Networks", tabName = "group_networks", icon = icon("object-group")),
+          menuItem("Bootstrap", tabName = "bootstrap", icon = icon("check-circle")),
+          menuItem("Permutation", tabName = "permutation", icon = icon("shuffle"))
         )
       ),
       dashboardBody(
         tags$html(lang = "en"),
         tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
 
-        # Toolbar with Save/Load/Export buttons
+        # Top-level mode tabs (TNA vs Group TNA)
         div(
-          class = "content-toolbar",
+          class = "mode-tabs",
           style = "padding: 10px 15px; background: #f4f4f4; border-bottom: 1px solid #ddd; margin-bottom: 10px;",
+          # Mode selector tabs
+          tags$span(
+            actionLink("mode_tna", "TNA", style = "font-size: 18px; font-weight: bold; color: #3c8dbc; margin-right: 20px; text-decoration: none;"),
+            actionLink("mode_group_tna", "Group TNA", style = "font-size: 18px; font-weight: bold; color: #999; margin-right: 30px; text-decoration: none;")
+          ),
+          # Save/Load/Export buttons
           actionButton("btn_save", tagList(icon("cloud-arrow-up"), " Save"), class = "btn btn-primary btn-sm", style = "margin-right: 5px;"),
           actionButton("btn_load", tagList(icon("folder-open"), " Load"), class = "btn btn-info btn-sm", style = "margin-right: 5px;"),
           actionButton("btn_export", tagList(icon("file-export"), " Export"), class = "btn btn-default btn-sm")
@@ -462,6 +475,10 @@ server <- function(input, output, session) {
                     conditionalPanel("input.inputType == 'matrix'",
                       fileInput("matrixInput", "Upload transition matrix")),
                     selectInput("type", "Analysis Type:", choices = c("relative", "frequency", "co-occurrence")),
+                    # Group selector - only visible in Group TNA mode
+                    div(id = "group_input_container", style = "display: none;",
+                      selectInput("gm_groupVar", "Group:", choices = NULL)
+                    ),
                     actionButton("analyze", "Analyze", class = "btn-primary")
                   )
                 )
@@ -549,6 +566,108 @@ server <- function(input, output, session) {
                     plotExportButtons("tnaPlot")
                   ),
                   div(jqui_resizable(plotOutput("tnaPlot", width = "600px", height = "600px"),
+                    options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                ))
+              )
+            )
+          ),
+
+          # Sequences Tab
+          tabItem(
+            tabName = "sequences",
+            conditionalPanel("input.inputType != 'matrix'",
+              fluidRow(
+                column(
+                  width = 3,
+                  fluidRow(box(title = "Sequence Plot Settings", width = 12,
+                    selectInput("seqPlotType", "Plot Type:",
+                      choices = c("Sequence Index" = "index", "Distribution" = "distribution"),
+                      selected = "index"),
+                    conditionalPanel("input.seqPlotType == 'distribution'",
+                      selectInput("seqScale", "Scale:",
+                        choices = c("Proportion" = "proportion", "Count" = "count"),
+                        selected = "proportion"),
+                      selectInput("seqGeom", "Geometry:",
+                        choices = c("Bar" = "bar", "Area" = "area"),
+                        selected = "bar")
+                    ),
+                    selectInput("seqGroup", "Group by:", choices = NULL),
+                    checkboxInput("seqIncludeNA", "Include NA values", value = FALSE),
+                    checkboxInput("seqShowN", "Show sample size (n)", value = TRUE),
+                    numericInput("seqTick", "X-axis tick interval:", value = 5, min = 1, max = 20),
+                    numericInput("seqNcol", "Number of columns:", value = 2, min = 1, max = 4),
+                    textInput("seqTitle", "Plot title:", placeholder = "Optional title"),
+                    textInput("seqXlab", "X-axis label:", value = "Time"),
+                    textInput("seqYlab", "Y-axis label:", placeholder = "Auto")
+                  ))
+                ),
+                column(
+                  width = 9,
+                  fluidRow(box(width = 12,
+                    div(class = "box-header-with-export",
+                      h3(class = "box-title", "Sequence Visualization"),
+                      plotExportButtons("seqPlot")
+                    ),
+                    div(jqui_resizable(plotOutput("seqPlot", width = "800px", height = "600px"),
+                      options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                  ))
+                )
+              )
+            ),
+            conditionalPanel("input.inputType == 'matrix'",
+              box(span(icon("circle-info", class = "text-danger"),
+                "Sequence plots require sequence or long data format, not a transition matrix"), width = 7))
+          ),
+
+          # Frequencies Tab
+          tabItem(
+            tabName = "frequencies",
+            fluidRow(
+              column(
+                width = 3,
+                fluidRow(box(title = "Frequency Plot Settings", width = 12,
+                  sliderInput("freqWidth", "Bar width:", min = 0.1, max = 1, value = 0.7, step = 0.1),
+                  checkboxInput("freqShowLabel", "Show frequency labels", value = TRUE),
+                  sliderInput("freqHjust", "Label position:", min = 0, max = 2, value = 1.2, step = 0.1)
+                ))
+              ),
+              column(
+                width = 9,
+                fluidRow(box(width = 12,
+                  div(class = "box-header-with-export",
+                    h3(class = "box-title", "State Frequencies"),
+                    plotExportButtons("freqPlot")
+                  ),
+                  div(jqui_resizable(plotOutput("freqPlot", width = "700px", height = "500px"),
+                    options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                ))
+              )
+            )
+          ),
+
+          # Associations Tab
+          tabItem(
+            tabName = "associations",
+            fluidRow(
+              column(
+                width = 3,
+                fluidRow(box(title = "Association Plot Settings", width = 12,
+                  sliderInput("assocCut", "Cut Value", min = 0, max = 1, value = 0.1, step = 0.01),
+                  sliderInput("assocMinimum", "Minimum Value", min = 0, max = 1, value = 0.05, step = 0.01),
+                  sliderInput("assocEdgeLabel", "Edge label size", min = 0, max = 10, value = 1, step = 0.1),
+                  sliderInput("assocVsize", "Node size", min = 0, max = 30, value = 8, step = 0.1),
+                  sliderInput("assocNodeLabel", "Node label size", min = 0, max = 10, value = 1, step = 0.1),
+                  selectInput("assocLayout", "Layout", choices = c("circle", "spring"), selected = "circle")
+                ))
+              ),
+              column(
+                width = 9,
+                fluidRow(box(width = 12,
+                  div(class = "box-header-with-export",
+                    h3(class = "box-title", "Association Network"),
+                    plotExportButtons("assocPlot")
+                  ),
+                  div(jqui_resizable(plotOutput("assocPlot", width = "600px", height = "600px"),
                     options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
                 ))
               )
@@ -720,13 +839,55 @@ server <- function(input, output, session) {
               box(span(icon("circle-info", class = "text-danger"), "Comparison operations are only supported in long data"), width = 7))
           ),
 
-          # Bootstrap/Validation Tab
+          # Group Networks Tab
+          tabItem(
+            tabName = "group_networks",
+            conditionalPanel("(input.inputType == 'long') | (input.inputType == 'sample')",
+              fluidRow(
+                column(
+                  width = 3,
+                  fluidRow(
+                    box(title = "Group Network Settings", width = 12,
+                      selectInput("groupNetSelect", "Grouping Variable:", choices = NULL),
+                      fluidRow(
+                        column(6, numericInput("groupNetNcol", "Columns:", value = 2, min = 1, max = 6)),
+                        column(6, numericInput("groupNetNrow", "Rows:", value = 1, min = 1, max = 6))
+                      ),
+                      hr(),
+                      sliderInput("groupNetCut", "Cut Value", min = 0, max = 1, value = 0.1, step = 0.01),
+                      sliderInput("groupNetMinimum", "Minimum Value", min = 0, max = 1, value = 0.05, step = 0.01),
+                      sliderInput("groupNetEdgeLabel", "Edge label size", min = 0, max = 10, value = 1, step = 0.1),
+                      sliderInput("groupNetVsize", "Node size", min = 0, max = 30, value = 8, step = 0.1),
+                      sliderInput("groupNetNodeLabel", "Node label size", min = 0, max = 10, value = 1, step = 0.1),
+                      selectInput("groupNetLayout", "Layout", choices = c("circle", "spring"), selected = "circle")
+                    )
+                  )
+                ),
+                column(
+                  width = 9,
+                  fluidRow(box(width = 12,
+                    div(class = "box-header-with-export",
+                      h3(class = "box-title", "Group Network Visualization"),
+                      plotExportButtons("groupNetPlot")
+                    ),
+                    div(jqui_resizable(plotOutput("groupNetPlot", width = "900px", height = "600px"),
+                      options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                  ))
+                )
+              )
+            ),
+            conditionalPanel("input.inputType == 'sequence' || input.inputType == 'matrix'",
+              box(span(icon("circle-info", class = "text-danger"),
+                "Group network plots require long data or sample data with grouping variables"), width = 7))
+          ),
+
+          # Bootstrap Tab
           tabItem(
             tabName = "bootstrap",
             conditionalPanel("input.inputType != 'matrix'",
               fluidRow(
                 column(width = 3, fluidRow(
-                  box(title = "Bootstrapping", width = 12,
+                  box(title = "Bootstrap", width = 12,
                     numericInput("iterBoot", "Iteration:", min = 0, max = 10000, value = 1000, step = 100),
                     numericInput("levelBoot", "Level:", min = 0, max = 1, value = 0.05, step = 0.01),
                     selectInput("methodBoot", "Method", choices = c("stability", "threshold"), selected = "stability"),
@@ -745,18 +906,292 @@ server <- function(input, output, session) {
                     sliderInput("node.labelBoot", "Node label size", min = 0, max = 10, value = 1, step = 0.1),
                     selectInput("layoutBoot", "Layout", choices = c("circle", "spring"), selected = "circle"))
                 )),
-                column(width = 9, fluidRow(box(width = 12,
-                  div(class = "box-header-with-export",
-                    h3(class = "box-title", "Bootstrap Validation"),
-                    plotExportButtons("tnaPlotBoot")
-                  ),
-                  div(jqui_resizable(plotOutput("tnaPlotBoot", width = "600px", height = "600px"),
-                    options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
-                )))
+                column(width = 9, fluidRow(
+                  box(width = 12,
+                    div(class = "box-header-with-export",
+                      h3(class = "box-title", "Bootstrap"),
+                      plotExportButtons("tnaPlotBoot")
+                    ),
+                    div(jqui_resizable(plotOutput("tnaPlotBoot", width = "600px", height = "600px"),
+                      options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                  )
+                ))
               )
             ),
             conditionalPanel("input.inputType == 'matrix'",
-              box(span(icon("circle-info", class = "text-danger"), "Validation operations are only supported when the full data is provided"), width = 7))
+              box(span(icon("circle-info", class = "text-danger"), "Bootstrap requires full data (not matrix input)"), width = 7))
+          ),
+
+          # Permutation Tab (Group TNA mode only)
+          tabItem(
+            tabName = "permutation",
+            conditionalPanel("input.inputType != 'matrix'",
+              fluidRow(
+                column(width = 3, fluidRow(
+                  box(title = "Permutation", width = 12,
+                    numericInput("iterPerm", "Iterations:", min = 100, max = 10000, value = 1000, step = 100),
+                    numericInput("levelPerm", "Level:", min = 0, max = 1, value = 0.05, step = 0.01),
+                    checkboxInput("pairedPerm", "Paired", value = FALSE),
+                    actionButton("permutationButton", "Run Permutation", class = "btn-primary"))
+                )),
+                column(width = 9, fluidRow(
+                  box(width = 12,
+                    div(class = "box-header-with-export",
+                      h3(class = "box-title", "Permutation"),
+                      plotExportButtons("permutationPlot")
+                    ),
+                    div(jqui_resizable(plotOutput("permutationPlot", width = "900px", height = "600px"),
+                      options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                  )
+                ))
+              )
+            ),
+            conditionalPanel("input.inputType == 'matrix'",
+              box(span(icon("circle-info", class = "text-danger"), "Permutation requires full data (not matrix input)"), width = 7))
+          ),
+
+          # =====================================================================
+          # GROUP MODE - Standalone Tab with Input Data and All Analyses
+          # =====================================================================
+          tabItem(
+            tabName = "group_mode",
+            # Data Input Section (similar to Input Data tab)
+            fluidRow(
+              column(
+                width = 3,
+                fluidRow(
+                  box(
+                    title = "Group TNA - Data Input", width = 12, status = "primary", solidHeader = TRUE,
+                    radioButtons("gm_inputType", "Input Type:", selected = character(0),
+                      choices = c("Use Current Data" = "current", "Sample data" = "sample",
+                                  "Sequence Data" = "sequence", "Long Data" = "long")),
+                    conditionalPanel("input.gm_inputType == 'sequence'",
+                      fileInput("gm_fileInput", "Upload data file (sequence or wide data)")),
+                    conditionalPanel("input.gm_inputType == 'long'",
+                      fileInput("gm_longInput", "Upload long data"),
+                      selectInput("gm_longAction", "Action:", choices = NULL, selectize = FALSE),
+                      selectInput("gm_longActor", "Actor:", choices = NULL, selectize = FALSE),
+                      selectInput("gm_longTime", "Time:", choices = NULL, selectize = FALSE),
+                      selectInput("gm_longOrder", "Order:", choices = NULL, selectize = FALSE),
+                      numericInput("gm_longThreshold", "Threshold:", min = 0, value = 900, step = 1),
+                      textInput("gm_longDate", "Date format:", placeholder = "Not mandatory")),
+                    hr(),
+                    selectInput("gm_groupVar", "Grouping Variable:", choices = NULL),
+                    selectInput("gm_type", "Analysis Type:", choices = c("relative", "frequency", "co-occurrence")),
+                    fluidRow(
+                      column(6, numericInput("gm_ncol", "Columns:", value = 2, min = 1, max = 6)),
+                      column(6, numericInput("gm_nrow", "Rows:", value = 1, min = 1, max = 6))
+                    ),
+                    actionButton("gm_analyze", "Analyze Groups", class = "btn-primary")
+                  )
+                )
+              ),
+              column(
+                width = 9,
+                fluidRow(
+                  conditionalPanel("!(input.gm_inputType)",
+                    fluidRow(box(width = 12, title = "Welcome to Group TNA!",
+                      fluidRow(column(12, p("Select the format of your data on the left panel or use our example data."))),
+                      fluidRow(column(12, p("Group TNA allows you to analyze data by groups, showing results for each group side by side."))),
+                      fluidRow(
+                        column(6, span("Sample Data", class = "datatype"),
+                          p("Pre-loaded example data with grouping variables for quick testing.")),
+                        column(6, span("Long Data (Recommended)", class = "datatype"),
+                          p("Long-format data with grouping columns for comparison across groups."))
+                      )
+                    ))
+                  ),
+                  conditionalPanel("input.gm_inputType",
+                    box(title = "Data Preview", width = 12,
+                      DTOutput("gm_dataPreview"),
+                      conditionalPanel("input.gm_inputType != 'sample' & !input.gm_dataPreview_state",
+                        span(icon("circle-info", class = "text-info"), "No data selected yet")),
+                      tags$br(), uiOutput("gm_tnaModel")
+                    )
+                  )
+                )
+              )
+            ),
+            # Sub-tabs for all analyses
+            fluidRow(
+              tabBox(width = 12, id = "gm_tabset",
+                # Visualization Tab
+                tabPanel("Visualization", icon = icon("project-diagram"),
+                  fluidRow(
+                    column(width = 3,
+                      box(title = "Settings", width = 12,
+                        sliderInput("gm_vis_cut", "Cut Value", min = 0, max = 1, value = 0.1, step = 0.01),
+                        sliderInput("gm_vis_minimum", "Minimum Value", min = 0, max = 1, value = 0.05, step = 0.01),
+                        sliderInput("gm_vis_edge.label", "Edge label size", min = 0, max = 10, value = 1, step = 0.1),
+                        sliderInput("gm_vis_vsize", "Node size", min = 0, max = 30, value = 8, step = 0.1),
+                        sliderInput("gm_vis_node.label", "Node label size", min = 0, max = 10, value = 1, step = 0.1),
+                        selectInput("gm_vis_layout", "Layout", choices = c("circle", "spring"), selected = "circle")
+                      )
+                    ),
+                    column(width = 9,
+                      box(width = 12,
+                        div(class = "box-header-with-export",
+                          h3(class = "box-title", "Group Network Visualization"),
+                          plotExportButtons("gm_visPlot")
+                        ),
+                        div(jqui_resizable(plotOutput("gm_visPlot", width = "900px", height = "600px"),
+                          options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                      )
+                    )
+                  )
+                ),
+                # Sequences Tab
+                tabPanel("Sequences", icon = icon("stream"),
+                  fluidRow(
+                    column(width = 3,
+                      box(title = "Sequence Plot Settings", width = 12,
+                        selectInput("gm_seq_type", "Plot Type:",
+                          choices = c("Sequence Index" = "index", "Distribution" = "distribution"),
+                          selected = "index"),
+                        conditionalPanel("input.gm_seq_type == 'distribution'",
+                          selectInput("gm_seq_scale", "Scale:",
+                            choices = c("Proportion" = "proportion", "Count" = "count"),
+                            selected = "proportion"),
+                          selectInput("gm_seq_geom", "Geometry:",
+                            choices = c("Bar" = "bar", "Area" = "area"),
+                            selected = "bar")
+                        ),
+                        checkboxInput("gm_seq_includeNA", "Include NA values", value = FALSE),
+                        checkboxInput("gm_seq_showN", "Show sample size (n)", value = TRUE),
+                        numericInput("gm_seq_tick", "X-axis tick interval:", value = 5, min = 1, max = 20),
+                        textInput("gm_seq_title", "Plot title:", placeholder = "Optional title"),
+                        textInput("gm_seq_xlab", "X-axis label:", value = "Time"),
+                        textInput("gm_seq_ylab", "Y-axis label:", placeholder = "Auto")
+                      )
+                    ),
+                    column(width = 9,
+                      box(width = 12,
+                        div(class = "box-header-with-export",
+                          h3(class = "box-title", "Group Sequence Visualization"),
+                          plotExportButtons("gm_seqPlot")
+                        ),
+                        div(jqui_resizable(plotOutput("gm_seqPlot", width = "900px", height = "600px"),
+                          options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                      )
+                    )
+                  )
+                ),
+                # Frequencies Tab
+                tabPanel("Frequencies", icon = icon("chart-bar"),
+                  fluidRow(
+                    column(width = 3,
+                      box(title = "Frequency Plot Settings", width = 12,
+                        sliderInput("gm_freq_width", "Bar width:", min = 0.1, max = 1, value = 0.7, step = 0.1),
+                        checkboxInput("gm_freq_showLabel", "Show frequency labels", value = TRUE),
+                        sliderInput("gm_freq_hjust", "Label position:", min = 0, max = 2, value = 1.2, step = 0.1)
+                      )
+                    ),
+                    column(width = 9,
+                      box(width = 12,
+                        div(class = "box-header-with-export",
+                          h3(class = "box-title", "Group State Frequencies"),
+                          plotExportButtons("gm_freqPlot")
+                        ),
+                        div(jqui_resizable(plotOutput("gm_freqPlot", width = "900px", height = "600px"),
+                          options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                      )
+                    )
+                  )
+                ),
+                # Centralities Tab
+                tabPanel("Centralities", icon = icon("bullseye"),
+                  fluidRow(
+                    box(width = 12,
+                      fluidRow(
+                        column(width = 6,
+                          selectInput("gm_cent_measures", "Centralities", multiple = TRUE,
+                            choices = c("OutStrength", "InStrength", "ClosenessIn", "ClosenessOut", "Closeness",
+                                        "BetweennessRSP", "Betweenness", "Diffusion", "Clustering"),
+                            selected = c("OutStrength", "InStrength", "Closeness", "Betweenness"))
+                        ),
+                        column(width = 3,
+                          tags$label("Properties"),
+                          checkboxInput("gm_cent_loops", "Loops?", value = FALSE),
+                          checkboxInput("gm_cent_normalize", "Normalize?", value = FALSE)
+                        ),
+                        column(width = 3,
+                          numericInput("gm_cent_plotNcol", "Plot Columns", 3, min = 1, max = 9, step = 1)
+                        )
+                      )
+                    )
+                  ),
+                  fluidRow(
+                    box(width = 12,
+                      div(class = "box-header-with-export",
+                        h3(class = "box-title", "Group Centrality Measures"),
+                        plotExportButtons("gm_centPlot")
+                      ),
+                      div(jqui_resizable(plotOutput("gm_centPlot", width = "900px", height = "800px"),
+                        options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                    )
+                  )
+                ),
+                # Communities Tab
+                tabPanel("Communities", icon = icon("users"),
+                  fluidRow(
+                    column(width = 3,
+                      box(title = "Community Detection Settings", width = 12,
+                        selectInput("gm_comm_algorithm", "Choose Algorithm:", choices = "spinglass"),
+                        numericInput("gm_comm_gamma", "Gamma:", value = 1, min = 0, max = 100)
+                      ),
+                      box(title = "Plotting Settings", width = 12,
+                        sliderInput("gm_comm_cut", "Cut Value", min = 0, max = 1, value = 0.1, step = 0.01),
+                        sliderInput("gm_comm_minimum", "Minimum Value", min = 0, max = 1, value = 0.05, step = 0.01),
+                        sliderInput("gm_comm_edge.label", "Edge label size", min = 0, max = 10, value = 1, step = 0.1),
+                        sliderInput("gm_comm_vsize", "Node size", min = 0, max = 30, value = 8, step = 0.1),
+                        sliderInput("gm_comm_node.label", "Node label size", min = 0, max = 10, value = 1, step = 0.1),
+                        selectInput("gm_comm_layout", "Layout", choices = c("circle", "spring"), selected = "circle")
+                      )
+                    ),
+                    column(width = 9,
+                      box(width = 12,
+                        div(class = "box-header-with-export",
+                          h3(class = "box-title", "Group Community Detection Results"),
+                          plotExportButtons("gm_commPlot")
+                        ),
+                        div(jqui_resizable(plotOutput("gm_commPlot", width = "900px", height = "600px"),
+                          options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                      )
+                    )
+                  )
+                ),
+                # Cliques Tab
+                tabPanel("Cliques", icon = icon("sitemap"),
+                  fluidRow(
+                    column(width = 3,
+                      box(title = "Clique Settings", width = 12,
+                        numericInput("gm_cliq_size", "Clique Size (n):", value = 3, min = 2, max = 10),
+                        numericInput("gm_cliq_threshold", "Threshold:", value = 0, min = 0, max = 1, step = 0.05),
+                        actionButton("gm_findCliques", "Find Cliques", class = "btn-primary")
+                      ),
+                      box(title = "Plotting Settings", width = 12,
+                        sliderInput("gm_cliq_cut", "Cut Value", min = 0, max = 1, value = 0.1, step = 0.01),
+                        sliderInput("gm_cliq_minimum", "Minimum Value", min = 0, max = 1, value = 0.05, step = 0.01),
+                        sliderInput("gm_cliq_edge.label", "Edge label size", min = 0, max = 10, value = 1, step = 0.1),
+                        sliderInput("gm_cliq_vsize", "Node size", min = 0, max = 30, value = 8, step = 0.1),
+                        sliderInput("gm_cliq_node.label", "Node label size", min = 0, max = 10, value = 1, step = 0.1),
+                        selectInput("gm_cliq_layout", "Layout", choices = c("circle", "spring"), selected = "circle")
+                      )
+                    ),
+                    column(width = 9,
+                      box(width = 12,
+                        div(class = "box-header-with-export",
+                          h3(class = "box-title", "Group Cliques Found"),
+                          plotExportButtons("gm_cliqPlot")
+                        ),
+                        div(jqui_resizable(plotOutput("gm_cliqPlot", width = "900px", height = "600px"),
+                          options = list(ghost = TRUE, helper = "resizable-helper")), align = "center")
+                      )
+                    )
+                  )
+                )
+              )
+            )
           )
         )
       )
@@ -820,10 +1255,57 @@ server <- function(input, output, session) {
     cliques_result = NULL,
     clique_plots = list(),
     community_result = NULL,
-    bootstrap_result = NULL
+    bootstrap_result = NULL,
+    # Group Mode specific results
+    gm_data = NULL,            # Data for Group Mode
+    gm_group_tna = NULL,       # Group TNA model
+    gm_cliques = NULL,         # Cliques per group
+    gm_bootstrap = NULL,       # Bootstrap results per group
+    permutation_result = NULL  # Permutation test results
   )
 
   mar <- DEFAULT_MAR
+
+  # --------------------------------------------------------------------------
+  # Mode Tab Switching (TNA vs Group TNA)
+  # --------------------------------------------------------------------------
+
+  # Track current mode
+  current_mode <- reactiveVal("tna")
+
+  # Click on TNA tab
+  observeEvent(input$mode_tna, {
+    current_mode("tna")
+    # Update tab styles and hide group selector
+    shinyjs::runjs("$('#mode_tna').css('color', '#3c8dbc'); $('#mode_group_tna').css('color', '#999');")
+    shinyjs::hide("group_input_container")
+    # Show menu items for regular TNA
+    shinyjs::runjs("$('a[data-value=\"results\"]').parent().show();")
+    shinyjs::runjs("$('a[data-value=\"associations\"]').parent().show();")
+    shinyjs::runjs("$('a[data-value=\"group_networks\"]').parent().show();")
+    shinyjs::runjs("$('a[data-value=\"comparison\"]').parent().show();")
+    shinyjs::runjs("$('a[data-value=\"cliques\"]').parent().show();")
+    shinyjs::runjs("$('a[data-value=\"edgebet\"]').parent().show();")
+    # Hide permutation menu (Group TNA only)
+    shinyjs::runjs("$('a[data-value=\"permutation\"]').parent().hide();")
+  })
+
+  # Click on Group TNA tab
+  observeEvent(input$mode_group_tna, {
+    current_mode("group_tna")
+    # Update tab styles and show group selector
+    shinyjs::runjs("$('#mode_tna').css('color', '#999'); $('#mode_group_tna').css('color', '#3c8dbc');")
+    shinyjs::show("group_input_container")
+    # Hide menu items not applicable for Group TNA
+    shinyjs::runjs("$('a[data-value=\"results\"]').parent().hide();")
+    shinyjs::runjs("$('a[data-value=\"associations\"]').parent().hide();")
+    shinyjs::runjs("$('a[data-value=\"group_networks\"]').parent().hide();")
+    shinyjs::runjs("$('a[data-value=\"comparison\"]').parent().hide();")
+    shinyjs::runjs("$('a[data-value=\"cliques\"]').parent().hide();")
+    # Show permutation menu (Group TNA only)
+    shinyjs::runjs("$('a[data-value=\"permutation\"]').parent().show();")
+    # Group selector is populated when data is uploaded (in dataPreview render)
+  })
 
   # --------------------------------------------------------------------------
   # Save/Load Handlers
@@ -1067,55 +1549,74 @@ server <- function(input, output, session) {
     req(input$inputType)
     req(input$type)
 
+    # Check that data is loaded before proceeding
+    if (is.null(rv$original)) {
+      showNotification("No data loaded. Please upload a file first.", type = "error")
+      return()
+    }
+
     if (input$inputType == "sequence") {
       rv$data <- rv$original
       tryCatch({
         rv$tna_result <- build_model(rv$data, type = req(input$type))
       }, error = function(e) {
-        showNotification("There was an error", type = "error", duration = 3)
+        message("Sequence analysis error: ", e$message)
+        showNotification(paste("Error:", e$message), type = "error", duration = 5)
       })
     } else if (input$inputType == "long") {
       tryCatch({
-        action <- rlang::missing_arg()
-        actor <- rlang::missing_arg()
-        time <- rlang::missing_arg()
-        order <- rlang::missing_arg()
-        dateformat <- NULL
-        thresh <- Inf
         whitelist <- c(".session_id", ".standardized_time", ".session_nr")
 
-        if ((input$longAction != "") && !is.null(input$longAction)) {
-          action <- input$longAction
-          whitelist <- c(whitelist, action)
+        # Build arguments dynamically - only include non-empty selections
+        prep_args <- list(data = rv$original)
+
+        if (!is.null(input$longAction) && input$longAction != "") {
+          prep_args$action <- input$longAction
+          whitelist <- c(whitelist, input$longAction)
         }
-        if ((input$longActor != "") && !is.null(input$longActor)) {
-          actor <- input$longActor
-          whitelist <- c(whitelist, actor)
+        if (!is.null(input$longActor) && input$longActor != "") {
+          prep_args$actor <- input$longActor
+          whitelist <- c(whitelist, input$longActor)
         }
-        if ((input$longTime != "") && !is.null(input$longTime)) {
-          time <- input$longTime
-          whitelist <- c(whitelist, time)
+        if (!is.null(input$longTime) && input$longTime != "") {
+          prep_args$time <- input$longTime
+          whitelist <- c(whitelist, input$longTime)
         }
-        if ((input$longOrder != "") && !is.null(input$longOrder)) {
-          order <- input$longOrder
-          whitelist <- c(whitelist, order)
+        if (!is.null(input$longOrder) && input$longOrder != "") {
+          prep_args$order <- input$longOrder
+          whitelist <- c(whitelist, input$longOrder)
         }
-        if ((input$longDate != "") && !is.null(input$longDate)) {
-          dateformat <- input$longDate
+        if (!is.null(input$longDate) && input$longDate != "") {
+          prep_args$custom_format <- input$longDate
         }
-        if ((input$longThreshold != "") && !is.null(input$longThreshold)) {
-          thresh <- input$longThreshold
+        if (!is.null(input$longThreshold) && input$longThreshold != "") {
+          prep_args$time_threshold <- input$longThreshold
+        } else {
+          prep_args$time_threshold <- Inf
         }
 
-        rv$data <- prepare_data(rv$original, action = action, actor = actor,
-          time_threshold = thresh, time = time, order = order, custom_format = dateformat)
+        rv$data <- do.call(prepare_data, prep_args)
         rv$tna_result <- build_model(rv$data, type = req(input$type))
 
-        groupchoices <- names(rv$data$meta_data)
+        # Get grouping choices - filter out internal columns and columns with too many unique values
+        meta <- rv$data$meta_data
+        groupchoices <- names(meta)
         groupchoices <- groupchoices[sapply(groupchoices, \(x) !(x %in% whitelist))]
+        # Filter columns with suitable number of unique values (2-50 for grouping)
+        if (length(groupchoices) > 0) {
+          groupchoices <- groupchoices[sapply(groupchoices, function(col) {
+            n_unique <- length(unique(meta[[col]]))
+            n_unique > 1 && n_unique <= 50
+          })]
+        }
+        if (length(groupchoices) == 0) groupchoices <- NULL
         updateSelectInput(session, "compareSelect", choices = groupchoices)
       }, error = function(e) {
-        showNotification("There was an error", type = "error", duration = 3)
+        err_msg <- conditionMessage(e)
+        if (is.null(err_msg) || err_msg == "") err_msg <- as.character(e)
+        message("Long data analysis error: ", err_msg)
+        showNotification(paste("Error:", err_msg), type = "error", duration = 5)
+        return()
       })
     } else if (input$inputType == "matrix") {
       tryCatch({
@@ -1123,7 +1624,8 @@ server <- function(input, output, session) {
         rv$data <- matrix_data
         rv$tna_result <- tna(matrix_data)
       }, error = function(e) {
-        showNotification("There was an error", type = "error", duration = 3)
+        message("Matrix analysis error: ", e$message)
+        showNotification(paste("Error:", e$message), type = "error", duration = 5)
       })
     } else if (input$inputType == "sample") {
       tryCatch({
@@ -1138,8 +1640,14 @@ server <- function(input, output, session) {
         rv$tna_result <- build_model(rv$data, type = req(input$type))
         rv$tna_result$data$Achiever <- c(rep("High", 1000), rep("Low", 1000))
       }, error = function(e) {
-        showNotification("There was an error", type = "error", duration = 3)
+        message("Sample data analysis error: ", e$message)
+        showNotification(paste("Error:", e$message), type = "error", duration = 5)
       })
+    }
+
+    # Only update sliders if analysis succeeded
+    if (is.null(rv$tna_result)) {
+      return()
     }
 
     # Update slider ranges based on analysis type
@@ -1179,11 +1687,24 @@ server <- function(input, output, session) {
     updateSliderInput(session, "vsizeEbet", value = vsize)
     updateSliderInput(session, "vsizeGroup", value = vsize)
     updateSliderInput(session, "vsizeBoot", value = vsize)
+
+    # Create group model if in Group TNA mode
+    if (current_mode() == "group_tna" && !is.null(input$gm_groupVar) && input$gm_groupVar != "") {
+      tryCatch({
+        rv$gm_group_tna <- group_model(rv$data, type = input$type, group = input$gm_groupVar)
+        showNotification(paste("Group TNA created with", length(rv$gm_group_tna), "groups"), type = "message")
+      }, error = function(e) {
+        message("Group model error: ", e$message)
+        showNotification(paste("Group model error:", e$message), type = "error")
+        rv$gm_group_tna <- NULL
+      })
+    } else {
+      rv$gm_group_tna <- NULL
+    }
   })
 
   # Data Preview
   output$dataPreview <- renderDT({
-    rv$original <- NULL
     if (is.null(input$inputType)) return(NULL)
 
     if (!is.null(input$longInput) && input$inputType == "long") {
@@ -1193,12 +1714,20 @@ server <- function(input, output, session) {
       updateSelectInput(session, "longActor", choices = theoptions)
       updateSelectInput(session, "longOrder", choices = theoptions)
       updateSelectInput(session, "longTime", choices = theoptions)
+      # Populate Group selector for Group TNA mode
+      updateSelectInput(session, "gm_groupVar", choices = theoptions)
     } else if (!is.null(input$matrixInput) && input$inputType == "matrix") {
       rv$original <- import(input$matrixInput$datapath, row.names = 1)
     } else if (!is.null(input$fileInput) && input$inputType == "sequence") {
       rv$original <- import(input$fileInput$datapath)
+      # Populate Group selector for Group TNA mode
+      theoptions <- c(Empty = "", names(rv$original))
+      updateSelectInput(session, "gm_groupVar", choices = theoptions)
     } else if (input$inputType == "sample") {
       rv$original <- group_regulation
+      # Populate Group selector with sample data columns
+      theoptions <- c(Empty = "", names(group_regulation))
+      updateSelectInput(session, "gm_groupVar", choices = theoptions)
     }
 
     rv$tna_result <- NULL
@@ -1242,11 +1771,20 @@ server <- function(input, output, session) {
   # Centrality Measures
   output$centralityPlot <- renderPlot({
     req(rv$tna_result)
-    centrality_result <- centralities(rv$tna_result, measures = input$centralitiesChoice,
-      normalize = input$normalize, loops = input$loops)
-    rv$centrality_result <- centrality_result
-    tryCatch({ plot(centrality_result, ncol = input$nColsCentralities) },
-      error = function(e) showNotification("Error plotting centralities", type = "error"))
+    tryCatch({
+      if (current_mode() == "group_tna" && !is.null(rv$gm_group_tna)) {
+        # Group TNA mode - centralities function handles groups automatically
+        centrality_result <- centralities(rv$gm_group_tna, measures = input$centralitiesChoice,
+          normalize = input$normalize, loops = input$loops)
+        rv$centrality_result <- centrality_result
+        plot(centrality_result, ncol = input$nColsCentralities)
+      } else {
+        centrality_result <- centralities(rv$tna_result, measures = input$centralitiesChoice,
+          normalize = input$normalize, loops = input$loops)
+        rv$centrality_result <- centrality_result
+        plot(centrality_result, ncol = input$nColsCentralities)
+      }
+    }, error = function(e) showNotification("Error plotting centralities", type = "error"))
   }, res = 100)
 
   output$centralityPrint <- renderTable({
@@ -1254,40 +1792,176 @@ server <- function(input, output, session) {
     data.frame(rv$centrality_result)
   })
 
-  # TNA Plot
+  # TNA Plot (supports both regular TNA and Group TNA modes)
   output$tnaPlot <- renderPlot({
     req(rv$tna_result)
     tryCatch({
-      plot(rv$tna_result, cut = input$cut, minimum = input$minimum, label.cex = input$node.label,
-        edge.label.cex = input$edge.label, vsize = input$vsize, layout = input$layout, mar = mar)
+      if (current_mode() == "group_tna" && !is.null(rv$gm_group_tna)) {
+        # Group TNA mode - use pre-computed group model
+        n_groups <- length(rv$gm_group_tna)
+        par(mfrow = c(1, n_groups))
+        group_names <- names(rv$gm_group_tna)
+        for (i in seq_along(rv$gm_group_tna)) {
+          plot(rv$gm_group_tna[[i]], title = group_names[i], cut = input$cut, minimum = input$minimum,
+            label.cex = input$node.label, edge.label.cex = input$edge.label, vsize = input$vsize,
+            layout = input$layout, mar = mar)
+        }
+      } else {
+        # Regular TNA mode
+        plot(rv$tna_result, cut = input$cut, minimum = input$minimum, label.cex = input$node.label,
+          edge.label.cex = input$edge.label, vsize = input$vsize, layout = input$layout, mar = mar)
+      }
     }, error = function(e) showNotification("Error plotting TNA", type = "error"))
+  }, res = 600)
+
+  # Sequence Plot
+  output$seqPlot <- renderPlot({
+    req(rv$tna_result)
+    req(rv$data)
+    req(input$inputType != "matrix")
+    tryCatch({
+      # Build arguments for plot_sequences
+      # Use rv$data (tna_data object) for sequence plots, not rv$tna_result
+      args <- list(
+        x = rv$data,
+        type = input$seqPlotType,
+        include_na = input$seqIncludeNA,
+        show_n = input$seqShowN,
+        tick = input$seqTick,
+        ncol = input$seqNcol,
+        xlab = input$seqXlab
+      )
+
+      # Add distribution-specific arguments
+      if (input$seqPlotType == "distribution") {
+        args$scale <- input$seqScale
+        args$geom <- input$seqGeom
+      }
+
+      # Add optional title
+      if (!is.null(input$seqTitle) && input$seqTitle != "") {
+        args$title <- input$seqTitle
+      }
+
+      # Add optional ylab
+      if (!is.null(input$seqYlab) && input$seqYlab != "") {
+        args$ylab <- input$seqYlab
+      }
+
+      # Add grouping - use Group TNA variable if in Group TNA mode, otherwise use seqGroup
+      if (current_mode() == "group_tna" && !is.null(input$gm_groupVar) && input$gm_groupVar != "") {
+        args$group <- input$gm_groupVar
+      } else if (!is.null(input$seqGroup) && input$seqGroup != "" && input$seqGroup != "None") {
+        args$group <- input$seqGroup
+      }
+
+      do.call(plot_sequences, args)
+    }, error = function(e) {
+      message("Sequence plot error: ", e$message)
+      showNotification(paste("Error plotting sequences:", e$message), type = "error")
+    })
+  }, res = 100)
+
+  # Update sequence group choices when data changes
+  observeEvent(rv$data, {
+    if (!is.null(rv$data) && !is.null(rv$data$meta_data)) {
+      choices <- c("None" = "", names(rv$data$meta_data))
+      updateSelectInput(session, "seqGroup", choices = choices)
+    } else {
+      updateSelectInput(session, "seqGroup", choices = c("None" = ""))
+    }
+  })
+
+  # Frequencies Plot
+  output$freqPlot <- renderPlot({
+    req(rv$tna_result)
+    tryCatch({
+      if (current_mode() == "group_tna" && !is.null(rv$gm_group_tna)) {
+        # Group TNA mode - function handles groups automatically
+        plot_frequencies(rv$gm_group_tna,
+          width = input$freqWidth,
+          hjust = input$freqHjust,
+          show_label = input$freqShowLabel)
+      } else {
+        plot_frequencies(rv$tna_result,
+          width = input$freqWidth,
+          hjust = input$freqHjust,
+          show_label = input$freqShowLabel)
+      }
+    }, error = function(e) {
+      message("Frequency plot error: ", e$message)
+      showNotification(paste("Error plotting frequencies:", e$message), type = "error")
+    })
+  }, res = 100)
+
+  # Associations Plot
+  output$assocPlot <- renderPlot({
+    req(rv$tna_result)
+    tryCatch({
+      plot_associations(rv$tna_result,
+        cut = input$assocCut,
+        minimum = input$assocMinimum,
+        label.cex = input$assocNodeLabel,
+        edge.label.cex = input$assocEdgeLabel,
+        vsize = input$assocVsize,
+        layout = input$assocLayout,
+        mar = mar)
+    }, error = function(e) {
+      message("Association plot error: ", e$message)
+      showNotification(paste("Error plotting associations:", e$message), type = "error")
+    })
   }, res = 600)
 
   # Edge Betweenness Plot
   output$edgeBetPlot <- renderPlot({
     req(rv$tna_result)
     tryCatch({
-      plot(betweenness_network(rv$tna_result), cut = input$cutEbet, minimum = input$minimumEbet,
-        label.cex = input$node.labelEbet, edge.label.cex = input$edge.labelEbet,
-        vsize = input$vsizeEbet, layout = input$layoutEbet, mar = mar)
+      if (current_mode() == "group_tna" && !is.null(rv$gm_group_tna)) {
+        # Group TNA mode - same loop pattern as tnaPlot
+        n_groups <- length(rv$gm_group_tna)
+        par(mfrow = c(1, n_groups))
+        group_names <- names(rv$gm_group_tna)
+        for (i in seq_along(rv$gm_group_tna)) {
+          ebet <- betweenness_network(rv$gm_group_tna[[i]])
+          plot(ebet, title = group_names[i], cut = input$cutEbet, minimum = input$minimumEbet,
+            label.cex = input$node.labelEbet, edge.label.cex = input$edge.labelEbet,
+            vsize = input$vsizeEbet, layout = input$layoutEbet, mar = mar)
+        }
+      } else {
+        plot(betweenness_network(rv$tna_result), cut = input$cutEbet, minimum = input$minimumEbet,
+          label.cex = input$node.labelEbet, edge.label.cex = input$edge.labelEbet,
+          vsize = input$vsizeEbet, layout = input$layoutEbet, mar = mar)
+      }
     }, error = function(e) showNotification("Error plotting edge betweenness", type = "error"))
   }, res = 600)
 
   # Community Plot
   output$communityPlot <- renderPlot({
     req(rv$tna_result)
-    rv$community_result <- tna::communities(rv$tna_result, gamma = input$gamma)
-    algorithm_choices <- sapply(names(rv$community_result$counts), function(alg) {
-      paste0(alg, " (", rv$community_result$counts[[alg]], " communities)")
-    })
-    choices <- names(algorithm_choices)
-    names(choices) <- paste0(names(rv$community_result$counts), " (", rv$community_result$counts, ")")
-    updateSelectInput(session, "communityAlgorithm", choices = choices, selected = input$communityAlgorithm)
-
     tryCatch({
-      plot(rv$community_result, method = input$communityAlgorithm, mar = mar, cut = input$cutCom,
-        minimum = input$minimumCom, label.cex = input$node.labelCom, edge.label.cex = input$edge.labelCom,
-        vsize = input$vsizeCom, layout = input$layoutCom)
+      if (current_mode() == "group_tna" && !is.null(rv$gm_group_tna)) {
+        # Group TNA mode - same loop pattern as tnaPlot
+        n_groups <- length(rv$gm_group_tna)
+        par(mfrow = c(1, n_groups))
+        group_names <- names(rv$gm_group_tna)
+        for (i in seq_along(rv$gm_group_tna)) {
+          comm <- tna::communities(rv$gm_group_tna[[i]], gamma = input$gamma)
+          plot(comm, method = input$communityAlgorithm, title = group_names[i], cut = input$cutCom,
+            minimum = input$minimumCom, label.cex = input$node.labelCom, edge.label.cex = input$edge.labelCom,
+            vsize = input$vsizeCom, layout = input$layoutCom, mar = mar)
+        }
+      } else {
+        rv$community_result <- tna::communities(rv$tna_result, gamma = input$gamma)
+        algorithm_choices <- sapply(names(rv$community_result$counts), function(alg) {
+          paste0(alg, " (", rv$community_result$counts[[alg]], " communities)")
+        })
+        choices <- names(algorithm_choices)
+        names(choices) <- paste0(names(rv$community_result$counts), " (", rv$community_result$counts, ")")
+        updateSelectInput(session, "communityAlgorithm", choices = choices, selected = input$communityAlgorithm)
+        plot(rv$community_result, method = input$communityAlgorithm, mar = mar, cut = input$cutCom,
+          minimum = input$minimumCom, label.cex = input$node.labelCom, edge.label.cex = input$edge.labelCom,
+          vsize = input$vsizeCom, layout = input$layoutCom)
+      }
     }, error = function(e) showNotification("Error plotting communities", type = "error"))
   }, res = 600)
 
@@ -1297,8 +1971,14 @@ server <- function(input, output, session) {
     req(input$cliqueSize)
     req(input$cliqueThreshold)
 
-    rv$cliques_result <- tna::cliques(rv$tna_result, size = input$cliqueSize,
-      threshold = input$cliqueThreshold, n = 1000)
+    if (current_mode() == "group_tna" && !is.null(rv$gm_group_tna)) {
+      # Group TNA mode - function handles groups automatically
+      rv$cliques_result <- tna::cliques(rv$gm_group_tna, size = input$cliqueSize,
+        threshold = input$cliqueThreshold, n = 1000)
+    } else {
+      rv$cliques_result <- tna::cliques(rv$tna_result, size = input$cliqueSize,
+        threshold = input$cliqueThreshold, n = 1000)
+    }
 
     if (length(rv$cliques_result$inits) > 0) {
       choices <- seq_along(rv$cliques_result$inits)
@@ -1369,29 +2049,520 @@ server <- function(input, output, session) {
     }, error = function(e) showNotification("Error plotting group centralities", type = "error"))
   }, res = 100)
 
-  # Bootstrap
+  # Group Networks - update grouping variable choices when data changes
+  observeEvent(rv$data, {
+    if (!is.null(rv$data) && !is.null(rv$data$meta_data)) {
+      meta <- rv$data$meta_data
+      choices <- names(meta)
+      # Filter out internal columns
+      choices <- choices[!grepl("^\\.session|^\\.standardized|^\\.session_nr", choices)]
+      # Filter out columns with too many unique values (likely IDs, not categorical)
+      # Keep only columns with <= 50 unique values for meaningful grouping
+      if (length(choices) > 0) {
+        choices <- choices[sapply(choices, function(col) {
+          n_unique <- length(unique(meta[[col]]))
+          n_unique > 1 && n_unique <= 50
+        })]
+      }
+      if (length(choices) > 0) {
+        updateSelectInput(session, "groupNetSelect", choices = choices)
+      } else {
+        updateSelectInput(session, "groupNetSelect", choices = c("No suitable grouping variables" = ""))
+      }
+    } else {
+      updateSelectInput(session, "groupNetSelect", choices = NULL)
+    }
+  })
+
+  # Update group choices when grouping variable changes
+  observeEvent(input$groupNetSelect, {
+    req(rv$data)
+    req(input$groupNetSelect)
+    if (!is.null(rv$data$meta_data) && input$groupNetSelect %in% names(rv$data$meta_data)) {
+      groups <- unique(rv$data$meta_data[[input$groupNetSelect]])
+      updateSelectInput(session, "groupNetWhich", choices = groups, selected = groups)
+    }
+  })
+
+  # Group Networks Plot
+  output$groupNetPlot <- renderPlot({
+    req(rv$tna_result)
+    req(rv$data)
+    req(input$groupNetSelect)
+    req(input$groupNetSelect != "")
+    tryCatch({
+      group_tnad <- group_model(rv$data, type = input$type, group = input$groupNetSelect)
+      n_groups <- length(group_tnad)
+
+      # Set up grid layout
+      ncol <- input$groupNetNcol %||% 2
+      nrow <- input$groupNetNrow %||% ceiling(n_groups / ncol)
+      par(mfrow = c(nrow, ncol))
+
+      # Plot each group
+      group_names <- names(group_tnad)
+      for (i in seq_along(group_tnad)) {
+        plot(group_tnad[[i]],
+          title = group_names[i],
+          cut = input$groupNetCut,
+          minimum = input$groupNetMinimum,
+          label.cex = input$groupNetNodeLabel,
+          edge.label.cex = input$groupNetEdgeLabel,
+          vsize = input$groupNetVsize,
+          layout = input$groupNetLayout,
+          mar = mar
+        )
+      }
+    }, error = function(e) {
+      message("Group network plot error: ", e$message)
+      showNotification(paste("Error plotting group networks:", e$message), type = "error")
+    })
+  }, res = 150)
+
+  # ==========================================================================
+  # GROUP MODE - Server Logic
+  # ==========================================================================
+
+  # Group Mode original data storage
+  gm_original <- reactiveVal(NULL)
+
+  # Reset Group Mode data when input type changes
+  observeEvent(input$gm_inputType, {
+    gm_original(NULL)
+    rv$gm_data <- NULL
+    rv$gm_group_tna <- NULL
+    rv$gm_cliques <- NULL
+  })
+
+  # Group Mode - Data Preview
+  output$gm_dataPreview <- renderDT({
+    if (is.null(input$gm_inputType)) return(NULL)
+
+    if (!is.null(input$gm_longInput) && input$gm_inputType == "long") {
+      gm_original(import(input$gm_longInput$datapath))
+      theoptions <- c(Empty = "", names(gm_original()))
+      updateSelectInput(session, "gm_longAction", choices = theoptions)
+      updateSelectInput(session, "gm_longActor", choices = theoptions)
+      updateSelectInput(session, "gm_longOrder", choices = theoptions)
+      updateSelectInput(session, "gm_longTime", choices = theoptions)
+      # Update grouping variable choices with all columns from long data
+      updateSelectInput(session, "gm_groupVar", choices = names(gm_original()))
+    } else if (!is.null(input$gm_fileInput) && input$gm_inputType == "sequence") {
+      gm_original(import(input$gm_fileInput$datapath))
+      # Update grouping variable choices with all columns from sequence data
+      updateSelectInput(session, "gm_groupVar", choices = names(gm_original()))
+    } else if (input$gm_inputType == "sample") {
+      gm_original(group_regulation)
+      # Sample data has "Achiever" as grouping variable
+      updateSelectInput(session, "gm_groupVar", choices = c("Achiever"))
+    } else if (input$gm_inputType == "current") {
+      # Use data from regular TNA mode
+      if (is.null(rv$data)) {
+        showNotification("No data loaded in TNA mode. Please load data first.", type = "error")
+        return(NULL)
+      }
+      gm_original(rv$data)
+      # Get grouping choices from metadata
+      if (!is.null(rv$data$meta_data)) {
+        updateSelectInput(session, "gm_groupVar", choices = names(rv$data$meta_data))
+      }
+    }
+
+    datatable(gm_original(), options = list(scrollX = TRUE))
+  })
+
+  output$gm_summary_model <- renderPrint({ rv$gm_group_tna })
+  output$gm_tnaModel <- renderUI({
+    if (is.null(rv$gm_group_tna)) NULL else verbatimTextOutput("gm_summary_model")
+  })
+
+  # Observer for Analyze Groups button
+  observeEvent(input$gm_analyze, {
+    req(input$gm_inputType)
+
+    # Check that data is loaded before proceeding
+    if (is.null(gm_original())) {
+      showNotification("No data loaded. Please upload a file or select Sample data first.", type = "error")
+      return()
+    }
+
+    tryCatch({
+      whitelist <- c(".session_id", ".standardized_time", ".session_nr")
+
+      if (input$gm_inputType == "sequence") {
+        rv$gm_data <- gm_original()
+        # Sequence data doesn't have metadata for grouping - need to add it manually or error
+        showNotification("Note: Sequence data may not have grouping variables. Consider using Long Data format.", type = "warning", duration = 5)
+
+      } else if (input$gm_inputType == "long") {
+        # Build arguments dynamically
+        prep_args <- list(data = gm_original())
+
+        if (!is.null(input$gm_longAction) && input$gm_longAction != "") {
+          prep_args$action <- input$gm_longAction
+          whitelist <- c(whitelist, input$gm_longAction)
+        }
+        if (!is.null(input$gm_longActor) && input$gm_longActor != "") {
+          prep_args$actor <- input$gm_longActor
+          whitelist <- c(whitelist, input$gm_longActor)
+        }
+        if (!is.null(input$gm_longTime) && input$gm_longTime != "") {
+          prep_args$time <- input$gm_longTime
+          whitelist <- c(whitelist, input$gm_longTime)
+        }
+        if (!is.null(input$gm_longOrder) && input$gm_longOrder != "") {
+          prep_args$order <- input$gm_longOrder
+          whitelist <- c(whitelist, input$gm_longOrder)
+        }
+        if (!is.null(input$gm_longDate) && input$gm_longDate != "") {
+          prep_args$custom_format <- input$gm_longDate
+        }
+        if (!is.null(input$gm_longThreshold) && input$gm_longThreshold != "") {
+          prep_args$time_threshold <- input$gm_longThreshold
+        } else {
+          prep_args$time_threshold <- Inf
+        }
+
+        rv$gm_data <- do.call(prepare_data, prep_args)
+
+        # Get grouping choices - filter out only internal columns, show all others
+        meta <- rv$gm_data$meta_data
+        groupchoices <- names(meta)
+        groupchoices <- groupchoices[sapply(groupchoices, \(x) !(x %in% whitelist))]
+        if (length(groupchoices) == 0) groupchoices <- NULL
+        updateSelectInput(session, "gm_groupVar", choices = groupchoices)
+
+      } else if (input$gm_inputType == "sample") {
+        rv$gm_data <- structure(
+          list(long_data = NULL, sequence_data = gm_original(),
+               meta_data = data.frame(Achiever = c(rep("High", 1000), rep("Low", 1000))),
+               statistics = NULL),
+          class = "tna_data"
+        )
+        # Don't update groupVar here - already set in observer
+      } else if (input$gm_inputType == "current") {
+        # Use data from regular TNA mode
+        if (is.null(rv$data)) {
+          showNotification("No data loaded in TNA mode. Please load data first.", type = "error")
+          return()
+        }
+        rv$gm_data <- rv$data
+      }
+
+      # Create group model
+      req(rv$gm_data)
+
+      # Get grouping variable - use current selection or default for sample data
+      gm_group <- input$gm_groupVar
+      if (is.null(gm_group) || gm_group == "") {
+        if (input$gm_inputType == "sample") {
+          gm_group <- "Achiever"
+        } else {
+          showNotification("Please select a grouping variable", type = "error")
+          return()
+        }
+      }
+
+      message("Creating group model with group: ", gm_group)
+      rv$gm_group_tna <- group_model(rv$gm_data, type = input$gm_type, group = gm_group)
+      message("Group model created with ", length(rv$gm_group_tna), " groups")
+      showNotification(paste("Group analysis ready with", length(rv$gm_group_tna), "groups"), type = "message", duration = 3)
+
+    }, error = function(e) {
+      err_msg <- conditionMessage(e)
+      if (is.null(err_msg) || err_msg == "") err_msg <- as.character(e)
+      message("Group Mode analyze error: ", err_msg)
+      showNotification(paste("Error:", err_msg), type = "error", duration = 5)
+    })
+  })
+
+  # Update grouping variable choices when input type changes
+  observeEvent(input$gm_inputType, {
+    if (!is.null(input$gm_inputType) && input$gm_inputType == "sample") {
+      # Load sample data immediately
+      gm_original(group_regulation)
+      # Sample data has "Achiever" as grouping variable
+      updateSelectInput(session, "gm_groupVar", choices = c("Achiever"), selected = "Achiever")
+    } else if (!is.null(input$gm_inputType) && input$gm_inputType == "current") {
+      # Use data from regular TNA mode immediately
+      if (!is.null(rv$data) && !is.null(rv$data$meta_data)) {
+        gm_original(rv$data)
+        updateSelectInput(session, "gm_groupVar", choices = names(rv$data$meta_data))
+      } else {
+        showNotification("No data loaded in TNA mode. Please load data first.", type = "warning")
+        updateSelectInput(session, "gm_groupVar", choices = NULL)
+      }
+    } else {
+      # Clear grouping variable for other input types until data is loaded
+      updateSelectInput(session, "gm_groupVar", choices = NULL)
+    }
+  }, ignoreInit = TRUE)
+
+  # Group Mode - Visualization Plot (create fresh group_model like Group Networks)
+  output$gm_visPlot <- renderPlot({
+    req(rv$gm_data)
+    req(input$gm_groupVar)
+    req(input$gm_groupVar != "")
+
+    # Create group model fresh (same as Group Networks)
+    group_tnad <- group_model(rv$gm_data, type = input$gm_type, group = input$gm_groupVar)
+    n_groups <- length(group_tnad)
+
+    # Set up grid layout
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+
+    # Plot each group
+    group_names <- names(group_tnad)
+    for (i in seq_along(group_tnad)) {
+      plot(group_tnad[[i]],
+        title = group_names[i],
+        cut = input$gm_vis_cut,
+        minimum = input$gm_vis_minimum,
+        label.cex = input$`gm_vis_node.label`,
+        edge.label.cex = input$`gm_vis_edge.label`,
+        vsize = input$gm_vis_vsize,
+        layout = input$gm_vis_layout,
+        mar = mar
+      )
+    }
+  }, res = 150)
+
+  # Group Mode - Sequences Plot
+  output$gm_seqPlot <- renderPlot({
+    req(rv$gm_data)
+    req(input$gm_groupVar)
+    req(input$gm_groupVar != "")
+    tryCatch({
+      # Calculate grid dimensions
+      ncol_val <- input$gm_ncol %||% 2
+      nrow_val <- input$gm_nrow %||% 2
+      # Use plot_sequences with grouping
+      args <- list(
+        x = rv$gm_data,
+        type = input$gm_seq_type,
+        group = input$gm_groupVar,
+        ncol = ncol_val,
+        nrow = nrow_val,
+        include_na = input$gm_seq_includeNA,
+        show_n = input$gm_seq_showN,
+        tick = input$gm_seq_tick,
+        xlab = if (input$gm_seq_xlab != "") input$gm_seq_xlab else "Time"
+      )
+      if (input$gm_seq_title != "") args$title <- input$gm_seq_title
+      if (input$gm_seq_ylab != "") args$ylab <- input$gm_seq_ylab
+      if (input$gm_seq_type == "distribution") {
+        args$scale <- input$gm_seq_scale
+        args$geom <- input$gm_seq_geom
+      }
+      do.call(plot_sequences, args)
+    }, error = function(e) {
+      message("Group Mode sequences error: ", e$message)
+      showNotification(paste("Error:", e$message), type = "error")
+    })
+  }, res = 100)
+
+  # Group Mode - Frequencies Plot
+  output$gm_freqPlot <- renderPlot({
+    req(rv$gm_group_tna)
+    tryCatch({
+      n_groups <- length(rv$gm_group_tna)
+      ncol_val <- input$gm_ncol %||% 2
+      nrow_val <- input$gm_nrow %||% ceiling(n_groups / ncol_val)
+      plot_frequencies(rv$gm_group_tna,
+        width = input$gm_freq_width,
+        hjust = input$gm_freq_hjust,
+        show_label = input$gm_freq_showLabel,
+        ncol = ncol_val,
+        nrow = nrow_val)
+    }, error = function(e) {
+      message("Group Mode frequencies error: ", e$message)
+      showNotification(paste("Error:", e$message), type = "error")
+    })
+  }, res = 100)
+
+  # Group Mode - Centralities Plot
+  output$gm_centPlot <- renderPlot({
+    req(rv$gm_group_tna)
+    tryCatch({
+      cent_result <- centralities(rv$gm_group_tna,
+        measures = input$gm_cent_measures,
+        normalize = input$gm_cent_normalize,
+        loops = input$gm_cent_loops)
+      plot(cent_result, ncol = input$gm_cent_plotNcol)
+    }, error = function(e) {
+      message("Group Mode centralities error: ", e$message)
+      showNotification(paste("Error:", e$message), type = "error")
+    })
+  }, res = 100)
+
+  # Group Mode - Communities Plot (same pattern as Group Networks)
+  output$gm_commPlot <- renderPlot({
+    req(rv$gm_group_tna)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_group_tna)
+    for (i in seq_along(rv$gm_group_tna)) {
+      comm <- tna::communities(rv$gm_group_tna[[i]], gamma = input$gm_comm_gamma)
+      plot(comm,
+        title = group_names[i],
+        method = input$gm_comm_algorithm,
+        mar = mar,
+        cut = input$gm_comm_cut,
+        minimum = input$gm_comm_minimum,
+        label.cex = input$`gm_comm_node.label`,
+        edge.label.cex = input$`gm_comm_edge.label`,
+        vsize = input$gm_comm_vsize,
+        layout = input$gm_comm_layout
+      )
+    }
+  }, res = 150)
+
+  # Group Mode - Find Cliques Button
+  observeEvent(input$gm_findCliques, {
+    req(rv$gm_group_tna)
+    tryCatch({
+      rv$gm_cliques <- tna::cliques(rv$gm_group_tna,
+        size = input$gm_cliq_size,
+        threshold = input$gm_cliq_threshold,
+        n = 1000)
+      showNotification("Cliques found for all groups!", type = "message")
+    }, error = function(e) {
+      message("Group Mode find cliques error: ", e$message)
+      showNotification(paste("Error finding cliques:", e$message), type = "error")
+    })
+  })
+
+  # Group Mode - Cliques Plot (same pattern as Group Networks)
+  output$gm_cliqPlot <- renderPlot({
+    req(rv$gm_cliques)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_cliques)
+    for (i in seq_along(rv$gm_cliques)) {
+      plot(rv$gm_cliques[[i]],
+        title = group_names[i],
+        first = 1,
+        n = 1,
+        ask = FALSE,
+        cut = input$gm_cliq_cut,
+        minimum = input$gm_cliq_minimum,
+        label.cex = input$`gm_cliq_node.label`,
+        edge.label.cex = input$`gm_cliq_edge.label`,
+        vsize = input$gm_cliq_vsize,
+        layout = input$gm_cliq_layout,
+        mar = mar
+      )
+    }
+  }, res = 150)
+
+  # Bootstrap (works in both TNA and Group TNA modes)
   observeEvent(input$bootstrapButton, {
     req(rv$tna_result)
     tryCatch({
-      boot <- tna::bootstrap(rv$tna_result, iter = input$iterBoot, level = input$levelBoot,
-        method = input$methodBoot, threshold = input$thresBoot,
-        consistency_range = sort(c(input$constLowerBoot, input$constUpperBoot)))
-      rv$bootstrap_result <- prune(rv$tna_result, method = "bootstrap", boot = boot)
-    }, error = function(e) showNotification("Error in bootstrap", type = "error"))
+      if (current_mode() == "group_tna" && !is.null(rv$gm_group_tna)) {
+        # Group TNA mode - bootstrap and prune the group model
+        showNotification("Running bootstrap...", id = "boot_prog", duration = NULL)
+        boot <- tna::bootstrap(rv$gm_group_tna, iter = input$iterBoot, level = input$levelBoot,
+          method = input$methodBoot, threshold = input$thresBoot,
+          consistency_range = sort(c(input$constLowerBoot, input$constUpperBoot)))
+        rv$gm_bootstrap <- prune(rv$gm_group_tna, method = "bootstrap", boot = boot)
+        rv$bootstrap_result <- NULL
+        removeNotification("boot_prog")
+        showNotification("Bootstrap completed!", type = "message")
+      } else {
+        # Regular TNA mode
+        boot <- tna::bootstrap(rv$tna_result, iter = input$iterBoot, level = input$levelBoot,
+          method = input$methodBoot, threshold = input$thresBoot,
+          consistency_range = sort(c(input$constLowerBoot, input$constUpperBoot)))
+        rv$bootstrap_result <- prune(rv$tna_result, method = "bootstrap", boot = boot)
+        rv$gm_bootstrap <- NULL
+      }
+    }, error = function(e) {
+      removeNotification("boot_prog")
+      showNotification(paste("Error in bootstrap:", e$message), type = "error")
+    })
   })
 
   output$tnaPlotBoot <- renderPlot({
-    req(rv$bootstrap_result)
     tryCatch({
-      plot(rv$bootstrap_result, cut = input$cutBoot, minimum = input$minimumBoot,
-        label.cex = input$node.labelBoot, edge.label.cex = input$edge.labelBoot,
-        vsize = input$vsizeBoot, layout = input$layoutBoot, mar = mar)
+      if (current_mode() == "group_tna" && !is.null(rv$gm_bootstrap)) {
+        # Group TNA mode - plot pruned bootstrap results for each group
+        n <- length(rv$gm_bootstrap)
+        if (n <= 4) {
+          par(mfrow = c(2, 2))
+        } else if (n <= 6) {
+          par(mfrow = c(2, 3))
+        } else {
+          ncol <- ceiling(sqrt(n))
+          nrow <- ceiling(n / ncol)
+          par(mfrow = c(nrow, ncol))
+        }
+        group_names <- names(rv$gm_bootstrap)
+        for (i in seq_along(rv$gm_bootstrap)) {
+          plot(rv$gm_bootstrap[[i]], title = group_names[i], cut = input$cutBoot,
+            minimum = input$minimumBoot, label.cex = input$node.labelBoot,
+            edge.label.cex = input$edge.labelBoot, vsize = input$vsizeBoot,
+            layout = input$layoutBoot, mar = mar)
+        }
+      } else {
+        req(rv$bootstrap_result)
+        plot(rv$bootstrap_result, cut = input$cutBoot, minimum = input$minimumBoot,
+          label.cex = input$node.labelBoot, edge.label.cex = input$edge.labelBoot,
+          vsize = input$vsizeBoot, layout = input$layoutBoot, mar = mar)
+      }
     }, error = function(e) showNotification("Error plotting bootstrap results", type = "error"))
   }, res = 600)
 
   output$bootstrappedtnaModel <- renderUI({
     if (is.null(rv$bootstrap_result)) NULL else verbatimTextOutput("summary_boot_model")
   })
+
+  # --------------------------------------------------------------------------
+  # Permutation Test (Group TNA mode only)
+  # --------------------------------------------------------------------------
+
+  observeEvent(input$permutationButton, {
+    req(rv$gm_group_tna)
+    tryCatch({
+      showNotification("Running permutation test...", id = "perm_prog", duration = NULL)
+      rv$permutation_result <- tna::permutation_test(
+        x = rv$gm_group_tna,
+        iter = input$iterPerm,
+        paired = input$pairedPerm,
+        level = input$levelPerm
+      )
+      removeNotification("perm_prog")
+      showNotification("Permutation test completed!", type = "message")
+    }, error = function(e) {
+      removeNotification("perm_prog")
+      showNotification(paste("Error in permutation test:", e$message), type = "error")
+    })
+  })
+
+  output$permutationPlot <- renderPlot({
+    req(rv$permutation_result)
+    tryCatch({
+      n <- length(rv$permutation_result)
+      if (n <= 4) {
+        par(mfrow = c(2, 2))
+      } else if (n <= 6) {
+        par(mfrow = c(2, 3))
+      } else {
+        ncol <- ceiling(sqrt(n))
+        nrow <- ceiling(n / ncol)
+        par(mfrow = c(nrow, ncol))
+      }
+      plot(rv$permutation_result)
+    }, error = function(e) {
+      showNotification(paste("Error plotting permutation:", e$message), type = "error")
+    })
+  }, res = 600)
 
   # --------------------------------------------------------------------------
   # Export Download Handlers
@@ -1463,6 +2634,61 @@ server <- function(input, output, session) {
       label.cex = input$node.label, edge.label.cex = input$edge.label,
       vsize = input$vsize, layout = input$layout, mar = DEFAULT_MAR)
   }, "tna_network", 10, 8)
+
+  # Sequence Plot
+  output$seqPlot_png <- plotDownloadPNG(function() {
+    req(rv$data)
+    args <- list(x = rv$data, type = input$seqPlotType, include_na = input$seqIncludeNA,
+      show_n = input$seqShowN, tick = input$seqTick, ncol = input$seqNcol, xlab = input$seqXlab)
+    if (input$seqPlotType == "distribution") {
+      args$scale <- input$seqScale
+      args$geom <- input$seqGeom
+    }
+    if (!is.null(input$seqTitle) && input$seqTitle != "") args$title <- input$seqTitle
+    if (!is.null(input$seqYlab) && input$seqYlab != "") args$ylab <- input$seqYlab
+    if (!is.null(input$seqGroup) && input$seqGroup != "" && input$seqGroup != "None") args$group <- input$seqGroup
+    do.call(plot_sequences, args)
+  }, "sequence_plot", 1600, 1200)
+
+  output$seqPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$data)
+    args <- list(x = rv$data, type = input$seqPlotType, include_na = input$seqIncludeNA,
+      show_n = input$seqShowN, tick = input$seqTick, ncol = input$seqNcol, xlab = input$seqXlab)
+    if (input$seqPlotType == "distribution") {
+      args$scale <- input$seqScale
+      args$geom <- input$seqGeom
+    }
+    if (!is.null(input$seqTitle) && input$seqTitle != "") args$title <- input$seqTitle
+    if (!is.null(input$seqYlab) && input$seqYlab != "") args$ylab <- input$seqYlab
+    if (!is.null(input$seqGroup) && input$seqGroup != "" && input$seqGroup != "None") args$group <- input$seqGroup
+    do.call(plot_sequences, args)
+  }, "sequence_plot", 12, 10)
+
+  # Frequencies Plot
+  output$freqPlot_png <- plotDownloadPNG(function() {
+    req(rv$tna_result)
+    plot_frequencies(rv$tna_result, width = input$freqWidth, hjust = input$freqHjust, show_label = input$freqShowLabel)
+  }, "frequencies_plot", 1400, 1000)
+
+  output$freqPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$tna_result)
+    plot_frequencies(rv$tna_result, width = input$freqWidth, hjust = input$freqHjust, show_label = input$freqShowLabel)
+  }, "frequencies_plot", 10, 8)
+
+  # Associations Plot
+  output$assocPlot_png <- plotDownloadPNG(function() {
+    req(rv$tna_result)
+    plot_associations(rv$tna_result, cut = input$assocCut, minimum = input$assocMinimum,
+      label.cex = input$assocNodeLabel, edge.label.cex = input$assocEdgeLabel,
+      vsize = input$assocVsize, layout = input$assocLayout, mar = DEFAULT_MAR)
+  }, "associations_plot", 1200, 1000)
+
+  output$assocPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$tna_result)
+    plot_associations(rv$tna_result, cut = input$assocCut, minimum = input$assocMinimum,
+      label.cex = input$assocNodeLabel, edge.label.cex = input$assocEdgeLabel,
+      vsize = input$assocVsize, layout = input$assocLayout, mar = DEFAULT_MAR)
+  }, "associations_plot", 10, 8)
 
   # Centrality Plot
   output$centralityPlot_png <- plotDownloadPNG(function() {
@@ -1583,6 +2809,37 @@ server <- function(input, output, session) {
       normalize = input$normalizeGroup, loops = input$loopsGroup), ncol = input$nColsCentralitiesGroup)
   }, "group_centralities", 12, 10)
 
+  # Group Networks Plot
+  output$groupNetPlot_png <- plotDownloadPNG(function() {
+    req(rv$data, rv$tna_result, input$type, input$groupNetSelect)
+    group_tnad <- group_model(rv$data, type = input$type, group = input$groupNetSelect)
+    n_groups <- length(group_tnad)
+    ncol <- input$groupNetNcol %||% 2
+    nrow <- input$groupNetNrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(group_tnad)
+    for (i in seq_along(group_tnad)) {
+      plot(group_tnad[[i]], title = group_names[i], cut = input$groupNetCut, minimum = input$groupNetMinimum,
+        label.cex = input$groupNetNodeLabel, edge.label.cex = input$groupNetEdgeLabel,
+        vsize = input$groupNetVsize, layout = input$groupNetLayout, mar = DEFAULT_MAR)
+    }
+  }, "group_networks", 1600, 1000)
+
+  output$groupNetPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$data, rv$tna_result, input$type, input$groupNetSelect)
+    group_tnad <- group_model(rv$data, type = input$type, group = input$groupNetSelect)
+    n_groups <- length(group_tnad)
+    ncol <- input$groupNetNcol %||% 2
+    nrow <- input$groupNetNrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(group_tnad)
+    for (i in seq_along(group_tnad)) {
+      plot(group_tnad[[i]], title = group_names[i], cut = input$groupNetCut, minimum = input$groupNetMinimum,
+        label.cex = input$groupNetNodeLabel, edge.label.cex = input$groupNetEdgeLabel,
+        vsize = input$groupNetVsize, layout = input$groupNetLayout, mar = DEFAULT_MAR)
+    }
+  }, "group_networks", 14, 10)
+
   # Bootstrap Plot
   output$tnaPlotBoot_png <- plotDownloadPNG(function() {
     req(rv$bootstrap_result)
@@ -1597,6 +2854,197 @@ server <- function(input, output, session) {
       label.cex = input$node.labelBoot, edge.label.cex = input$edge.labelBoot,
       vsize = input$vsizeBoot, layout = input$layoutBoot, mar = DEFAULT_MAR)
   }, "bootstrap_validation", 10, 8)
+
+  # Permutation Plot Export
+  output$permutationPlot_png <- plotDownloadPNG(function() {
+    req(rv$permutation_result)
+    n <- length(rv$permutation_result)
+    if (n <= 4) {
+      par(mfrow = c(2, 2))
+    } else if (n <= 6) {
+      par(mfrow = c(2, 3))
+    } else {
+      ncol <- ceiling(sqrt(n))
+      nrow <- ceiling(n / ncol)
+      par(mfrow = c(nrow, ncol))
+    }
+    plot(rv$permutation_result)
+  }, "permutation_test", 1200, 1000)
+
+  output$permutationPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$permutation_result)
+    n <- length(rv$permutation_result)
+    if (n <= 4) {
+      par(mfrow = c(2, 2))
+    } else if (n <= 6) {
+      par(mfrow = c(2, 3))
+    } else {
+      ncol <- ceiling(sqrt(n))
+      nrow <- ceiling(n / ncol)
+      par(mfrow = c(nrow, ncol))
+    }
+    plot(rv$permutation_result)
+  }, "permutation_test", 10, 8)
+
+  # ==========================================================================
+  # GROUP MODE - Export Handlers
+  # ==========================================================================
+
+  # Group Mode - Visualization Export
+  output$gm_visPlot_png <- plotDownloadPNG(function() {
+    req(rv$gm_group_tna)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_group_tna)
+    for (i in seq_along(rv$gm_group_tna)) {
+      plot(rv$gm_group_tna[[i]], title = group_names[i], cut = input$gm_vis_cut,
+        minimum = input$gm_vis_minimum, label.cex = input$`gm_vis_node.label`,
+        edge.label.cex = input$`gm_vis_edge.label`, vsize = input$gm_vis_vsize,
+        layout = input$gm_vis_layout, mar = DEFAULT_MAR)
+    }
+  }, "gm_visualization", 1600, 1000)
+
+  output$gm_visPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$gm_group_tna)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_group_tna)
+    for (i in seq_along(rv$gm_group_tna)) {
+      plot(rv$gm_group_tna[[i]], title = group_names[i], cut = input$gm_vis_cut,
+        minimum = input$gm_vis_minimum, label.cex = input$`gm_vis_node.label`,
+        edge.label.cex = input$`gm_vis_edge.label`, vsize = input$gm_vis_vsize,
+        layout = input$gm_vis_layout, mar = DEFAULT_MAR)
+    }
+  }, "gm_visualization", 14, 10)
+
+  # Group Mode - Sequences Export
+  output$gm_seqPlot_png <- plotDownloadPNG(function() {
+    req(rv$gm_data, input$gm_groupVar)
+    args <- list(x = rv$gm_data, type = input$gm_seq_type, group = input$gm_groupVar,
+      ncol = input$gm_ncol %||% 2, nrow = input$gm_nrow %||% 2)
+    if (input$gm_seq_type == "distribution") {
+      args$scale <- input$gm_seq_scale
+      args$geom <- input$gm_seq_geom
+    }
+    do.call(plot_sequences, args)
+  }, "gm_sequences", 1600, 1200)
+
+  output$gm_seqPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$gm_data, input$gm_groupVar)
+    args <- list(x = rv$gm_data, type = input$gm_seq_type, group = input$gm_groupVar,
+      ncol = input$gm_ncol %||% 2, nrow = input$gm_nrow %||% 2)
+    if (input$gm_seq_type == "distribution") {
+      args$scale <- input$gm_seq_scale
+      args$geom <- input$gm_seq_geom
+    }
+    do.call(plot_sequences, args)
+  }, "gm_sequences", 12, 10)
+
+  # Group Mode - Frequencies Export
+  output$gm_freqPlot_png <- plotDownloadPNG(function() {
+    req(rv$gm_group_tna)
+    n_groups <- length(rv$gm_group_tna)
+    ncol_val <- input$gm_ncol %||% 2
+    nrow_val <- input$gm_nrow %||% ceiling(n_groups / ncol_val)
+    plot_frequencies(rv$gm_group_tna, width = input$gm_freq_width,
+      hjust = input$gm_freq_hjust, show_label = input$gm_freq_showLabel,
+      ncol = ncol_val, nrow = nrow_val)
+  }, "gm_frequencies", 1600, 1000)
+
+  output$gm_freqPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$gm_group_tna)
+    n_groups <- length(rv$gm_group_tna)
+    ncol_val <- input$gm_ncol %||% 2
+    nrow_val <- input$gm_nrow %||% ceiling(n_groups / ncol_val)
+    plot_frequencies(rv$gm_group_tna, width = input$gm_freq_width,
+      hjust = input$gm_freq_hjust, show_label = input$gm_freq_showLabel,
+      ncol = ncol_val, nrow = nrow_val)
+  }, "gm_frequencies", 12, 10)
+
+  # Group Mode - Centralities Export
+  output$gm_centPlot_png <- plotDownloadPNG(function() {
+    req(rv$gm_group_tna)
+    group_tnad <- rv$gm_group_tna
+    cent_result <- centralities(group_tnad, measures = input$gm_cent_measures,
+      normalize = input$gm_cent_normalize, loops = input$gm_cent_loops)
+    plot(cent_result, ncol = input$gm_cent_plotNcol)
+  }, "gm_centralities", 1600, 1200)
+
+  output$gm_centPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$gm_group_tna)
+    group_tnad <- rv$gm_group_tna
+    cent_result <- centralities(group_tnad, measures = input$gm_cent_measures,
+      normalize = input$gm_cent_normalize, loops = input$gm_cent_loops)
+    plot(cent_result, ncol = input$gm_cent_plotNcol)
+  }, "gm_centralities", 12, 10)
+
+  # Group Mode - Communities Export
+  output$gm_commPlot_png <- plotDownloadPNG(function() {
+    req(rv$gm_group_tna)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_group_tna)
+    for (i in seq_along(rv$gm_group_tna)) {
+      comm <- tna::communities(rv$gm_group_tna[[i]], gamma = input$gm_comm_gamma)
+      plot(comm, title = group_names[i], method = input$gm_comm_algorithm, mar = DEFAULT_MAR,
+        cut = input$gm_comm_cut, minimum = input$gm_comm_minimum,
+        label.cex = input$`gm_comm_node.label`, edge.label.cex = input$`gm_comm_edge.label`,
+        vsize = input$gm_comm_vsize, layout = input$gm_comm_layout)
+    }
+  }, "gm_communities", 1600, 1000)
+
+  output$gm_commPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$gm_group_tna)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_group_tna)
+    for (i in seq_along(rv$gm_group_tna)) {
+      comm <- tna::communities(rv$gm_group_tna[[i]], gamma = input$gm_comm_gamma)
+      plot(comm, title = group_names[i], method = input$gm_comm_algorithm, mar = DEFAULT_MAR,
+        cut = input$gm_comm_cut, minimum = input$gm_comm_minimum,
+        label.cex = input$`gm_comm_node.label`, edge.label.cex = input$`gm_comm_edge.label`,
+        vsize = input$gm_comm_vsize, layout = input$gm_comm_layout)
+    }
+  }, "gm_communities", 14, 10)
+
+  # Group Mode - Cliques Export
+  output$gm_cliqPlot_png <- plotDownloadPNG(function() {
+    req(rv$gm_cliques)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_cliques)
+    for (i in seq_along(rv$gm_cliques)) {
+      plot(rv$gm_cliques[[i]], title = group_names[i], first = 1, n = 1, ask = FALSE,
+        cut = input$gm_cliq_cut, minimum = input$gm_cliq_minimum,
+        label.cex = input$`gm_cliq_node.label`, edge.label.cex = input$`gm_cliq_edge.label`,
+        vsize = input$gm_cliq_vsize, layout = input$gm_cliq_layout, mar = DEFAULT_MAR)
+    }
+  }, "gm_cliques", 1600, 1000)
+
+  output$gm_cliqPlot_pdf <- plotDownloadPDF(function() {
+    req(rv$gm_cliques)
+    n_groups <- length(rv$gm_group_tna)
+    ncol <- input$gm_ncol %||% 2
+    nrow <- input$gm_nrow %||% ceiling(n_groups / ncol)
+    par(mfrow = c(nrow, ncol))
+    group_names <- names(rv$gm_cliques)
+    for (i in seq_along(rv$gm_cliques)) {
+      plot(rv$gm_cliques[[i]], title = group_names[i], first = 1, n = 1, ask = FALSE,
+        cut = input$gm_cliq_cut, minimum = input$gm_cliq_minimum,
+        label.cex = input$`gm_cliq_node.label`, edge.label.cex = input$`gm_cliq_edge.label`,
+        vsize = input$gm_cliq_vsize, layout = input$gm_cliq_layout, mar = DEFAULT_MAR)
+    }
+  }, "gm_cliques", 14, 10)
 }
 
 # ============================================================================

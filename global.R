@@ -5,6 +5,11 @@
 # All user data stored in USER'S Google Drive - we store nothing
 # ============================================================================
 
+# Load environment variables from .Renviron
+if (file.exists(".Renviron")) {
+  readRenviron(".Renviron")
+}
+
 # Required packages
 library(shiny)
 library(shinydashboard)
