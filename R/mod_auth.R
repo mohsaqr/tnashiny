@@ -200,17 +200,9 @@ build_auth_url <- function(session) {
 #' Get redirect URI based on current session
 #' @param session Shiny session
 get_redirect_uri <- function(session) {
-  # Get current URL components
-  protocol <- if (session$clientData$url_protocol == "https:") "https" else "http"
-  host <- session$clientData$url_hostname
-  port <- session$clientData$url_port
-
-  # Build redirect URI with trailing slash to match Google Console config
-  if (port != "" && port != "80" && port != "443") {
-    redirect_uri <- sprintf("%s://%s:%s/", protocol, host, port)
-  } else {
-    redirect_uri <- sprintf("%s://%s/", protocol, host)
-  }
+  # Use fixed redirect URI for local development (must match Google Console)
+  # This avoids redirect_uri_mismatch errors from dynamic ports
+  redirect_uri <- "http://localhost:3838/"
 
   message("Generated redirect URI: ", redirect_uri)
   return(redirect_uri)
