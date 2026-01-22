@@ -2960,18 +2960,18 @@ server <- function(input, output, session) {
       tryCatch(
         {
           if (current_mode() == "group_tna" && !is.null(rv$gm_bootstrap)) {
-            # Group TNA mode - plot bootstrap results for each group
-            n_groups <- length(rv$gm_bootstrap)
-            par(mfrow = c(1, n_groups))
-            group_names <- names(rv$gm_bootstrap)
-            for (i in seq_along(rv$gm_bootstrap)) {
-              plot(rv$gm_bootstrap[[i]],
-                title = group_names[i], cut = input$cutBoot,
-                minimum = input$minimumBoot, label.cex = input$node.labelBoot,
-                edge.label.cex = input$edge.labelBoot, vsize = input$vsizeBoot,
-                layout = input$layoutBoot, mar = mar
-              )
+            # Group TNA mode - plot bootstrap results (same logic as permutation)
+            n <- length(rv$gm_bootstrap)
+            if (n <= 4) {
+              par(mfrow = c(2, 2))
+            } else if (n <= 6) {
+              par(mfrow = c(2, 3))
+            } else {
+              ncol <- ceiling(sqrt(n))
+              nrow <- ceiling(n / ncol)
+              par(mfrow = c(nrow, ncol))
             }
+            plot(rv$gm_bootstrap)
           } else {
             req(rv$bootstrap_result)
             plot(rv$bootstrap_result,
